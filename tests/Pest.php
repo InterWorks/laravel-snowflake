@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use InterWorks\SnowflakeApi\Tests\TestCase;
 
-pest()->extend(TestCase::class)->in('Unit');
+pest()->extend(TestCase::class)->in('Live', 'Unit');
 
 /**
  * The raw contents of a JSON fixture under tests/Fixtures.
