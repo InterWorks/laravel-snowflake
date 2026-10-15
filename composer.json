@@ -1,0 +1,41 @@
+{
+    "name": "interworks/laravel-snowflake",
+    "description": "Snowflake SQL API v2 client for Laravel with External OAuth and Programmatic Access Token authentication.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["snowflake", "sql-api", "laravel", "saloon"],
+    "authors": [{ "name": "InterWorks", "email": "curator@interworks.com" }],
+    "require": {
+        "php": "^8.3",
+        "illuminate/contracts": "^11.0||^12.0||^13.0",
+        "saloonphp/laravel-plugin": "^4.3",
+        "saloonphp/saloon": "^4.5",
+        "spatie/laravel-package-tools": "^1.16"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.18",
+        "orchestra/testbench": "^10.0",
+        "pestphp/pest": "^4.0",
+        "pestphp/pest-plugin-laravel": "^4.0"
+    },
+    "autoload": { "psr-4": { "InterWorks\\SnowflakeApi\\": "src/" } },
+    "autoload-dev": { "psr-4": { "InterWorks\\SnowflakeApi\\Tests\\": "tests/" } },
+    "extra": {
+        "laravel": { "providers": ["InterWorks\\SnowflakeApi\\SnowflakeServiceProvider"] }
+    },
+    "scripts": {
+        "analyse": "vendor/bin/phpstan analyse --memory-limit=1G",
+        "check": ["@lint", "@analyse", "@test"],
+        "fix": "vendor/bin/pint",
+        "lint": "vendor/bin/pint --test",
+        "test": "vendor/bin/pest",
+        "test:live": "vendor/bin/pest --group=live"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": { "pestphp/pest-plugin": true }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
