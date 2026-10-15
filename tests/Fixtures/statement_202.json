@@ -1,0 +1,6 @@
+{
+    "code": "333334",
+    "message": "Asynchronous execution in progress. Use provided query id to perform query monitoring and management.",
+    "statementHandle": "01b2c3d4-0000-1111-2222-333344445555",
+    "statementStatusUrl": "/api/v2/statements/01b2c3d4-0000-1111-2222-333344445555"
+}

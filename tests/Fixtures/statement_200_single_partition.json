@@ -1,0 +1,60 @@
+{
+    "resultSetMetaData": {
+        "numRows": 3,
+        "format": "jsonv2",
+        "partitionInfo": [
+            {
+                "rowCount": 3,
+                "uncompressedSize": 64
+            }
+        ],
+        "rowType": [
+            {
+                "name": "REGION",
+                "database": "",
+                "schema": "",
+                "table": "",
+                "nullable": true,
+                "length": 16777216,
+                "type": "text",
+                "scale": null,
+                "precision": null,
+                "byteLength": 16777216,
+                "collation": null
+            },
+            {
+                "name": "REVENUE",
+                "database": "",
+                "schema": "",
+                "table": "",
+                "nullable": true,
+                "length": null,
+                "type": "fixed",
+                "scale": 2,
+                "precision": 38,
+                "byteLength": null,
+                "collation": null
+            }
+        ]
+    },
+    "data": [
+        [
+            "EMEA",
+            "1250.50"
+        ],
+        [
+            "APAC",
+            "980.00"
+        ],
+        [
+            "AMER",
+            null
+        ]
+    ],
+    "code": "090001",
+    "statementStatusUrl": "/api/v2/statements/01b2c3d4-0000-1111-2222-333344445555",
+    "sqlState": "00000",
+    "statementHandle": "01b2c3d4-0000-1111-2222-333344445555",
+    "message": "Statement executed successfully.",
+    "createdOn": 1767225600000
+}

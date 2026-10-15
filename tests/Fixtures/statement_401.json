@@ -1,0 +1,6 @@
+{
+    "code": "390303",
+    "message": "Invalid OAuth access token.",
+    "sqlState": "08004",
+    "statementHandle": "01b2c3d4-0000-1111-2222-333344445555"
+}

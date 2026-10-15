@@ -1,0 +1,6 @@
+{
+    "code": "000603",
+    "message": "An unexpected error occurred. Please retry the request.",
+    "sqlState": "XX000",
+    "statementHandle": "01b2c3d4-0000-1111-2222-333344445555"
+}
