@@ -57,13 +57,13 @@ final readonly class Options
 
         $config = app('config');
 
-        $suffix = $config->get('snowflake.user_agent_suffix');
+        $suffix = $config->get('snowflake-api.user_agent_suffix');
 
         return new self(
-            httpTimeoutBufferSeconds: (int) $config->get('snowflake.http_timeout_buffer', 5),
-            connectTimeoutSeconds: (int) $config->get('snowflake.connect_timeout', 10),
+            httpTimeoutBufferSeconds: (int) $config->get('snowflake-api.http_timeout_buffer', 5),
+            connectTimeoutSeconds: (int) $config->get('snowflake-api.connect_timeout', 10),
             userAgentSuffix: is_string($suffix) && $suffix !== '' ? $suffix : null,
-            maxResponseBytes: (int) $config->get('snowflake.max_response_bytes', 67_108_864),
+            maxResponseBytes: (int) $config->get('snowflake-api.max_response_bytes', 67_108_864),
         );
     }
 }

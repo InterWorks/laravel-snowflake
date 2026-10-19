@@ -18,6 +18,6 @@ final class SnowflakeServiceProvider extends PackageServiceProvider
      */
     public function configurePackage(Package $package): void
     {
-        $package->name('snowflake')->hasConfigFile();
+        $package->name('snowflake-api')->hasConfigFile();
     }
 }

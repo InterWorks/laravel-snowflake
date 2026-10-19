@@ -24,10 +24,10 @@ it('builds the full payload in the documented key order', function (): void {
         ->warehouse('ANALYTICS_WH')
         ->database('GOVERNED')
         ->schema('PUBLIC')
-        ->role('CURATOR_VIEWER')
+        ->role('ANALYST_ROLE')
         ->timeout(30)
         ->parameter('TIMEZONE', 'UTC')
-        ->queryTag('curator:user:12:page:/sales');
+        ->queryTag('app:user:12:page:/sales');
 
     expect($statement->toPayload())->toBe([
         'statement' => 'SELECT region FROM governed.sales WHERE year = ? AND region = ?',
@@ -35,12 +35,12 @@ it('builds the full payload in the documented key order', function (): void {
         'warehouse' => 'ANALYTICS_WH',
         'database' => 'GOVERNED',
         'schema' => 'PUBLIC',
-        'role' => 'CURATOR_VIEWER',
+        'role' => 'ANALYST_ROLE',
         'bindings' => [
             '1' => ['type' => 'FIXED', 'value' => '2026'],
             '2' => ['type' => 'TEXT', 'value' => 'EMEA'],
         ],
-        'parameters' => ['QUERY_TAG' => 'curator:user:12:page:/sales', 'TIMEZONE' => 'UTC'],
+        'parameters' => ['QUERY_TAG' => 'app:user:12:page:/sales', 'TIMEZONE' => 'UTC'],
     ]);
 });
 

@@ -71,7 +71,7 @@ it('sends the documented request', function (Closure $makeAuthenticator, string 
     [$client, $mock] = snowflakeWith(
         [MockResponse::make(jsonFixture('statement_200_single_partition'))],
         $makeAuthenticator(),
-        new Options(userAgentSuffix: 'curator/1.2'),
+        new Options(userAgentSuffix: 'myapp/1.2'),
     );
 
     $client->execute(Statement::make('SELECT 1'));
@@ -92,7 +92,7 @@ it('sends the documented request', function (Closure $makeAuthenticator, string 
         ->and($headers['X-Snowflake-Authorization-Token-Type'])->toBe($tokenType)
         ->and($headers['Content-Type'])->toBe('application/json')
         ->and($headers['Accept'])->toBe('application/json')
-        ->and($headers['User-Agent'])->toBe('interworks-laravel-snowflake/' . Snowflake::VERSION . ' curator/1.2');
+        ->and($headers['User-Agent'])->toBe('interworks-laravel-snowflake/' . Snowflake::VERSION . ' myapp/1.2');
 })->with('executeAuthenticators');
 
 it('sends the plain user agent when no suffix is set', function (): void {
@@ -126,9 +126,9 @@ it('sends the full statement payload as the json body', function (): void {
         ->warehouse('ANALYTICS_WH')
         ->database('GOVERNED')
         ->schema('PUBLIC')
-        ->role('CURATOR_VIEWER')
+        ->role('ANALYST_ROLE')
         ->timeout(30)
-        ->queryTag('curator:user:12:page:/sales');
+        ->queryTag('app:user:12:page:/sales');
 
     $client->execute($statement);
 
@@ -141,9 +141,9 @@ it('sends the full statement payload as the json body', function (): void {
             'warehouse' => 'ANALYTICS_WH',
             'database' => 'GOVERNED',
             'schema' => 'PUBLIC',
-            'role' => 'CURATOR_VIEWER',
+            'role' => 'ANALYST_ROLE',
             'bindings' => ['1' => ['type' => 'FIXED', 'value' => '2026']],
-            'parameters' => ['QUERY_TAG' => 'curator:user:12:page:/sales'],
+            'parameters' => ['QUERY_TAG' => 'app:user:12:page:/sales'],
         ])
         ->and((string) $body)->toContain('"bindings":{"1":{"type":"FIXED","value":"2026"}}');
 });

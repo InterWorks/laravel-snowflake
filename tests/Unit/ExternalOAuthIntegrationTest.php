@@ -14,9 +14,9 @@ use InterWorks\SnowflakeApi\Sql\UserMappingAttribute;
 function createIntegrationSql(array $overrides = []): string
 {
     $arguments = array_merge([
-        'integrationName' => 'CURATOR_OAUTH',
-        'issuer' => 'https://curator.example.com',
-        'jwksUrl' => 'https://curator.example.com/.well-known/jwks.json',
+        'integrationName' => 'APP_OAUTH',
+        'issuer' => 'https://app.example.com',
+        'jwksUrl' => 'https://app.example.com/.well-known/jwks.json',
         'audiences' => ['https://myorg-myaccount.snowflakecomputing.com'],
     ], $overrides);
 
@@ -25,20 +25,20 @@ function createIntegrationSql(array $overrides = []): string
 
 it('builds the exact statement for the defaults', function (): void {
     $sql = ExternalOAuthIntegration::createSql(
-        'CURATOR_OAUTH',
-        'https://curator.example.com',
-        'https://curator.example.com/.well-known/jwks.json',
-        ['https://myorg-myaccount.snowflakecomputing.com', 'curator'],
+        'APP_OAUTH',
+        'https://app.example.com',
+        'https://app.example.com/.well-known/jwks.json',
+        ['https://myorg-myaccount.snowflakecomputing.com', 'my-app'],
     );
 
     expect($sql)->toBe(<<<'SQL'
-CREATE SECURITY INTEGRATION CURATOR_OAUTH
+CREATE SECURITY INTEGRATION APP_OAUTH
   TYPE = EXTERNAL_OAUTH
   ENABLED = TRUE
   EXTERNAL_OAUTH_TYPE = CUSTOM
-  EXTERNAL_OAUTH_ISSUER = 'https://curator.example.com'
-  EXTERNAL_OAUTH_JWS_KEYS_URL = 'https://curator.example.com/.well-known/jwks.json'
-  EXTERNAL_OAUTH_AUDIENCE_LIST = ('https://myorg-myaccount.snowflakecomputing.com', 'curator')
+  EXTERNAL_OAUTH_ISSUER = 'https://app.example.com'
+  EXTERNAL_OAUTH_JWS_KEYS_URL = 'https://app.example.com/.well-known/jwks.json'
+  EXTERNAL_OAUTH_AUDIENCE_LIST = ('https://myorg-myaccount.snowflakecomputing.com', 'my-app')
   EXTERNAL_OAUTH_TOKEN_USER_MAPPING_CLAIM = 'email'
   EXTERNAL_OAUTH_SNOWFLAKE_USER_MAPPING_ATTRIBUTE = 'EMAIL_ADDRESS'
   EXTERNAL_OAUTH_SCOPE_MAPPING_ATTRIBUTE = 'scp'
@@ -48,10 +48,10 @@ SQL);
 
 it('builds the exact statement for login name mapping with any role mode off', function (): void {
     $sql = ExternalOAuthIntegration::createSql(
-        integrationName: 'CURATOR_OAUTH',
-        issuer: 'https://curator.example.com',
-        jwksUrl: 'https://curator.example.com/.well-known/jwks.json',
-        audiences: ['curator'],
+        integrationName: 'APP_OAUTH',
+        issuer: 'https://app.example.com',
+        jwksUrl: 'https://app.example.com/.well-known/jwks.json',
+        audiences: ['my-app'],
         userMappingClaim: 'preferred_username',
         mappingAttribute: UserMappingAttribute::LoginName,
         anyRoleMode: false,
@@ -59,13 +59,13 @@ it('builds the exact statement for login name mapping with any role mode off', f
     );
 
     expect($sql)->toBe(<<<'SQL'
-CREATE SECURITY INTEGRATION CURATOR_OAUTH
+CREATE SECURITY INTEGRATION APP_OAUTH
   TYPE = EXTERNAL_OAUTH
   ENABLED = TRUE
   EXTERNAL_OAUTH_TYPE = CUSTOM
-  EXTERNAL_OAUTH_ISSUER = 'https://curator.example.com'
-  EXTERNAL_OAUTH_JWS_KEYS_URL = 'https://curator.example.com/.well-known/jwks.json'
-  EXTERNAL_OAUTH_AUDIENCE_LIST = ('curator')
+  EXTERNAL_OAUTH_ISSUER = 'https://app.example.com'
+  EXTERNAL_OAUTH_JWS_KEYS_URL = 'https://app.example.com/.well-known/jwks.json'
+  EXTERNAL_OAUTH_AUDIENCE_LIST = ('my-app')
   EXTERNAL_OAUTH_TOKEN_USER_MAPPING_CLAIM = 'preferred_username'
   EXTERNAL_OAUTH_SNOWFLAKE_USER_MAPPING_ATTRIBUTE = 'LOGIN_NAME'
   EXTERNAL_OAUTH_SCOPE_MAPPING_ATTRIBUTE = 'scope'
@@ -74,9 +74,9 @@ SQL);
 });
 
 it('doubles single quotes in the issuer', function (): void {
-    $sql = createIntegrationSql(['issuer' => "https://curator.example.com/o'brien"]);
+    $sql = createIntegrationSql(['issuer' => "https://app.example.com/o'brien"]);
 
-    expect($sql)->toContain("EXTERNAL_OAUTH_ISSUER = 'https://curator.example.com/o''brien'");
+    expect($sql)->toContain("EXTERNAL_OAUTH_ISSUER = 'https://app.example.com/o''brien'");
 });
 
 it('doubles single quotes in every string argument', function (): void {
@@ -92,9 +92,9 @@ it('doubles single quotes in every string argument', function (): void {
 });
 
 it('doubles backslashes so a trailing backslash cannot escape the closing quote', function (): void {
-    $sql = createIntegrationSql(['issuer' => 'https://curator.example.com/x\\']);
+    $sql = createIntegrationSql(['issuer' => 'https://app.example.com/x\\']);
 
-    expect($sql)->toContain("EXTERNAL_OAUTH_ISSUER = 'https://curator.example.com/x\\\\'");
+    expect($sql)->toContain("EXTERNAL_OAUTH_ISSUER = 'https://app.example.com/x\\\\'");
 });
 
 it('keeps injection attempts inside the string literal', function (): void {
