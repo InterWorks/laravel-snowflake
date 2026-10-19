@@ -18,3 +18,9 @@ All notable changes to this project are documented in this file. The format foll
 - Exception hierarchy mapping Snowflake HTTP statuses to typed exceptions that never expose a token.
 - SQL helpers for External OAuth: `CREATE SECURITY INTEGRATION` and `SYSTEM$VERIFY_EXTERNAL_OAUTH_TOKEN`.
 - Laravel service provider with one config file.
+
+### Security
+
+- Redirects are disabled, so a statement is never resent and a `Location` header is never followed.
+- Certificate verification is stated explicitly, and the connector is pinned to the Guzzle sender so a
+  `saloon.default_sender` override cannot route requests through a client that records headers.

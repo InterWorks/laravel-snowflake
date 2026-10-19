@@ -23,6 +23,7 @@ use Saloon\Exceptions\Request\FatalRequestException;
 use Saloon\Http\Faking\MockClient;
 use Saloon\Http\Faking\MockResponse;
 use Saloon\Http\PendingRequest;
+use Saloon\Http\Senders\GuzzleSender;
 
 const EXECUTE_TOKEN = 'exec-token-77c1d2.payload.signature';
 const ACCOUNT_URL = 'https://myorg-myaccount.snowflakecomputing.com';
@@ -619,3 +620,22 @@ it('refuses out of range options', function (int $buffer, int $connect): void {
     'negative buffer' => [-1, 10],
     'zero connect timeout' => [5, 0],
 ]);
+
+it('turns redirects off so a statement can never be resent', function (): void {
+    [$client, $mock] = snowflakeWith([MockResponse::make('{}', 307, ['Location' => 'https://evil.example/x'])]);
+
+    expect(fn () => $client->execute(Statement::make('INSERT INTO t VALUES (1)')))
+        ->toThrow(fn (TransportException $e) => expect($e->httpStatus)->toBe(307));
+
+    $config = lastPendingRequest($mock)->config()->all();
+
+    expect($config['allow_redirects'])->toBeFalse()
+        ->and($config['verify'])->toBeTrue();
+    $mock->assertSentCount(1);
+});
+
+it('always sends through the Guzzle sender regardless of the Saloon default', function (): void {
+    [$client] = snowflakeWith([MockResponse::make(jsonFixture('statement_200_single_partition'))]);
+
+    expect($client->connector()->sender())->toBeInstanceOf(GuzzleSender::class);
+});

@@ -10,12 +10,19 @@ use InterWorks\SnowflakeApi\Snowflake;
 use InterWorks\SnowflakeApi\Support\AccountUrl;
 use Saloon\Http\Auth\TokenAuthenticator;
 use Saloon\Http\Connector;
+use Saloon\Http\Senders\GuzzleSender;
 
 /**
  * The Saloon connector for one Snowflake account and one credential. It never retries and never logs.
  */
 final class SnowflakeConnector extends Connector
 {
+    /**
+     * Pinned so a consumer's saloon.default_sender cannot route statements through another client, such as Laravel's
+     * HTTP client, whose events and watchers may record request headers.
+     */
+    protected string $defaultSender = GuzzleSender::class;
+
     public function __construct(
         private readonly AccountUrl $accountUrl,
         private readonly Authenticator $credentials,
@@ -32,13 +39,20 @@ final class SnowflakeConnector extends Connector
     }
 
     /**
-     * Only the connect timeout is fixed here; the request sets the total timeout from its statement.
+     * Transport safety settings and the connect timeout. The request sets the total timeout from its statement.
+     *
+     * Redirects are off because following one would resend a statement, possibly to another host. Certificate
+     * verification is stated explicitly rather than left to the client default.
      *
      * @return array<string, mixed>
      */
     protected function defaultConfig(): array
     {
-        return ['connect_timeout' => $this->options->connectTimeoutSeconds];
+        return [
+            'allow_redirects' => false,
+            'connect_timeout' => $this->options->connectTimeoutSeconds,
+            'verify' => true,
+        ];
     }
 
     /**
