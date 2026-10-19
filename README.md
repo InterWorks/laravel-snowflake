@@ -55,7 +55,7 @@ security advisories, so a package claiming support would only be testable agains
 The service provider is discovered automatically. It registers one config file and binds nothing. To publish the config:
 
 ```bash
-php artisan vendor:publish --tag=snowflake-config
+php artisan vendor:publish --tag=snowflake-api-config
 ```
 
 ## Quick start
@@ -120,9 +120,9 @@ $base = Statement::make('SELECT * FROM orders WHERE id = ? AND region = ?')
     ->warehouse('ANALYTICS_WH')
     ->database('GOVERNED')
     ->schema('PUBLIC')
-    ->role('CURATOR_VIEWER')
+    ->role('ANALYST_ROLE')
     ->timeout(30)                             // statement limit in seconds, default 45
-    ->queryTag('curator:user:12')             // QUERY_TAG, up to 2000 characters
+    ->queryTag('app:user:12')             // QUERY_TAG, up to 2000 characters
     ->parameter('TIMEZONE', 'UTC');           // any other session parameter
 
 $one = $base->bind(1, BindingType::Fixed, '42')->bind(2, BindingType::Text, null);   // null is sent as JSON null
@@ -230,10 +230,10 @@ Everything has a default, and the config file is optional. Publish it, or set en
 
 | Config key | Environment variable | Default | Meaning |
 | --- | --- | --- | --- |
-| `snowflake.http_timeout_buffer` | `SNOWFLAKE_HTTP_TIMEOUT_BUFFER` | `5` | Seconds added to the statement timeout |
-| `snowflake.connect_timeout` | `SNOWFLAKE_CONNECT_TIMEOUT` | `10` | Seconds allowed to open the connection |
-| `snowflake.user_agent_suffix` | `SNOWFLAKE_USER_AGENT_SUFFIX` | none | Appended to the User-Agent, so Snowflake's query history can tell consumers apart |
-| `snowflake.max_response_bytes` | `SNOWFLAKE_MAX_RESPONSE_BYTES` | `67108864` | The transfer is aborted past this many bytes on the wire (64 MiB) |
+| `snowflake-api.http_timeout_buffer` | `SNOWFLAKE_HTTP_TIMEOUT_BUFFER` | `5` | Seconds added to the statement timeout |
+| `snowflake-api.connect_timeout` | `SNOWFLAKE_CONNECT_TIMEOUT` | `10` | Seconds allowed to open the connection |
+| `snowflake-api.user_agent_suffix` | `SNOWFLAKE_USER_AGENT_SUFFIX` | none | Appended to the User-Agent, so Snowflake's query history can tell consumers apart |
+| `snowflake-api.max_response_bytes` | `SNOWFLAKE_MAX_RESPONSE_BYTES` | `67108864` | The transfer is aborted past this many bytes on the wire (64 MiB) |
 
 `Snowflake::make()` reads these inside a Laravel app and falls back to defaults elsewhere. To skip Laravel entirely,
 construct `new Snowflake($accountUrl, $authenticator, new Options(...))` yourself.
@@ -245,9 +245,9 @@ it executes nothing.**
 
 ```php
 $sql = ExternalOAuthIntegration::createSql(
-    integrationName: 'CURATOR_OAUTH',
-    issuer: 'https://curator.example.com',                      // must equal the token's iss claim byte for byte
-    jwksUrl: 'https://curator.example.com/.well-known/jwks.json',
+    integrationName: 'APP_OAUTH',
+    issuer: 'https://app.example.com',                      // must equal the token's iss claim byte for byte
+    jwksUrl: 'https://app.example.com/.well-known/jwks.json',
     audiences: ['https://myorg-myaccount.snowflakecomputing.com'],
 );
 ```
@@ -283,7 +283,7 @@ $mock->getLastPendingRequest()->body()->all();   // exactly what would have been
 
 `tests/Fixtures/` holds realistic Snowflake bodies for 200, 202, 401, 403, 422, 429 and 500 that you can copy.
 
-To work on the package itself:
+To work on the package itself, start with the [developer walkthrough](docs/WALKTHROUGH.md):
 
 ```bash
 composer install
