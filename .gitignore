@@ -6,3 +6,6 @@
 /.idea/
 /.vscode/
 .DS_Store
+
+# Local-only notes (build plan, tutorial). Never published.
+/docs-local/
