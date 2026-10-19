@@ -15,7 +15,8 @@ it('registers the provider and merges the default config', function (): void {
     expect(app()->getProviders(SnowflakeServiceProvider::class))->not->toBeEmpty()
         ->and(config('snowflake.http_timeout_buffer'))->toBe(5)
         ->and(config('snowflake.connect_timeout'))->toBe(10)
-        ->and(config('snowflake.user_agent_suffix'))->toBeNull();
+        ->and(config('snowflake.user_agent_suffix'))->toBeNull()
+        ->and(config('snowflake.max_response_bytes'))->toBe(67_108_864);
 });
 
 it('binds nothing in the container', function (): void {
@@ -28,19 +29,22 @@ it('reads the defaults through Options::fromLaravelConfig', function (): void {
 
     expect($options->httpTimeoutBufferSeconds)->toBe(5)
         ->and($options->connectTimeoutSeconds)->toBe(10)
-        ->and($options->userAgentSuffix)->toBeNull();
+        ->and($options->userAgentSuffix)->toBeNull()
+        ->and($options->maxResponseBytes)->toBe(67_108_864);
 });
 
 it('reflects overridden config values in Options::fromLaravelConfig', function (): void {
     config()->set('snowflake.http_timeout_buffer', 9);
     config()->set('snowflake.connect_timeout', 4);
     config()->set('snowflake.user_agent_suffix', 'curator/2.0');
+    config()->set('snowflake.max_response_bytes', 1234);
 
     $options = Options::fromLaravelConfig();
 
     expect($options->httpTimeoutBufferSeconds)->toBe(9)
         ->and($options->connectTimeoutSeconds)->toBe(4)
-        ->and($options->userAgentSuffix)->toBe('curator/2.0');
+        ->and($options->userAgentSuffix)->toBe('curator/2.0')
+        ->and($options->maxResponseBytes)->toBe(1234);
 });
 
 it('treats an empty user agent suffix in config as unset', function (): void {

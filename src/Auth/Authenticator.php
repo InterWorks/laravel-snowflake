@@ -10,12 +10,11 @@ namespace InterWorks\SnowflakeApi\Auth;
 interface Authenticator
 {
     /**
-     * The token type: the value of the X-Snowflake-Authorization-Token-Type header.
-     */
-    public function tokenType(): string;
-
-    /**
      * The bearer credential. Called once per request. The package never caches or logs it.
      */
     public function token(): string;
+    /**
+     * The token type: the value of the X-Snowflake-Authorization-Token-Type header.
+     */
+    public function tokenType(): string;
 }

@@ -41,69 +41,6 @@ final class Snowflake
     }
 
     /**
-     * Builds a client from a plain URL.
-     *
-     * Reads config('snowflake.*') for the options when running inside a Laravel container that has the config
-     * repository bound, and uses the option defaults otherwise.
-     *
-     * @throws InvalidArgumentException when the URL is not an acceptable Snowflake account URL.
-     */
-    public static function make(string $accountUrl, Authenticator $authenticator): self
-    {
-        return new self(AccountUrl::fromString($accountUrl), $authenticator, Options::fromLaravelConfig());
-    }
-
-    /**
-     * The Saloon connector. Exposed so tests can attach a MockClient.
-     */
-    public function connector(): SnowflakeConnector
-    {
-        return $this->connector;
-    }
-
-    /**
-     * Submits one statement and returns the first partition of its result.
-     *
-     * @throws AuthenticationException        401 or 403 from Snowflake.
-     * @throws SqlException                   422, the statement failed to compile or execute.
-     * @throws StatementStillRunningException 202, the statement outlived the timeout.
-     * @throws RateLimitedException           429.
-     * @throws TransportException             connection failure, HTTP timeout, 5xx, any other status, bad body.
-     */
-    public function execute(Statement $statement): StatementResult
-    {
-        $request = new SubmitStatementRequest($statement, $this->options->httpTimeoutBufferSeconds);
-        $startedAt = hrtime(true);
-
-        try {
-            $response = $this->connector->send($request);
-        } catch (Throwable $e) {
-            throw new TransportException('Could not reach Snowflake: ' . self::describe($e));
-        }
-
-        $elapsedMilliseconds = intdiv(hrtime(true) - $startedAt, 1_000_000);
-        $status = $response->status();
-        $body = self::decode($response->body());
-
-        if ($status === 200) {
-            if ($body === null) {
-                throw self::unexpectedBody();
-            }
-
-            return self::buildResult($body, $elapsedMilliseconds);
-        }
-
-        if ($body === null) {
-            throw new TransportException(
-                sprintf('Snowflake returned status %d with an unreadable body.', $status),
-                $status
-            );
-        }
-
-        throw self::failure($response, $status, $body);
-    }
-
-    /**
      * @param array<array-key, mixed> $body
      */
     private static function buildResult(array $body, int $elapsedMilliseconds): StatementResult
@@ -167,6 +104,14 @@ final class Snowflake
     }
 
     /**
+     * The Saloon connector. Exposed so tests can attach a MockClient.
+     */
+    public function connector(): SnowflakeConnector
+    {
+        return $this->connector;
+    }
+
+    /**
      * @return array<array-key, mixed>|null null when the body is not a JSON object or array
      */
     private static function decode(string $body): ?array
@@ -189,6 +134,48 @@ final class Snowflake
         $class = substr(strrchr('\\' . $source::class, '\\') ?: '', 1);
 
         return $class . ': ' . $source->getMessage();
+    }
+
+    /**
+     * Submits one statement and returns the first partition of its result.
+     *
+     * @throws AuthenticationException        401 or 403 from Snowflake.
+     * @throws SqlException                   422, the statement failed to compile or execute.
+     * @throws StatementStillRunningException 202, the statement outlived the timeout.
+     * @throws RateLimitedException           429.
+     * @throws TransportException             connection failure, HTTP timeout, 5xx, any other status, bad body.
+     */
+    public function execute(Statement $statement): StatementResult
+    {
+        $request = new SubmitStatementRequest($statement, $this->options->httpTimeoutBufferSeconds);
+        $startedAt = hrtime(true);
+
+        try {
+            $response = $this->connector->send($request);
+        } catch (Throwable $e) {
+            throw new TransportException('Could not reach Snowflake: ' . self::describe($e));
+        }
+
+        $elapsedMilliseconds = intdiv(hrtime(true) - $startedAt, 1_000_000);
+        $status = $response->status();
+        $body = self::decode($response->body());
+
+        if ($status === 200) {
+            if ($body === null) {
+                throw self::unexpectedBody();
+            }
+
+            return self::buildResult($body, $elapsedMilliseconds);
+        }
+
+        if ($body === null) {
+            throw new TransportException(
+                sprintf('Snowflake returned status %d with an unreadable body.', $status),
+                $status
+            );
+        }
+
+        throw self::failure($response, $status, $body);
     }
 
     /**
@@ -228,6 +215,19 @@ final class Snowflake
             ),
             default => new TransportException($message ?? 'Snowflake did not answer.', $status, $code),
         };
+    }
+
+    /**
+     * Builds a client from a plain URL.
+     *
+     * Reads config('snowflake.*') for the options when running inside a Laravel container that has the config
+     * repository bound, and uses the option defaults otherwise.
+     *
+     * @throws InvalidArgumentException when the URL is not an acceptable Snowflake account URL.
+     */
+    public static function make(string $accountUrl, Authenticator $authenticator): self
+    {
+        return new self(AccountUrl::fromString($accountUrl), $authenticator, Options::fromLaravelConfig());
     }
 
     private static function retryAfterSeconds(Response $response): ?int

@@ -9,6 +9,6 @@ namespace InterWorks\SnowflakeApi\Sql;
  */
 enum UserMappingAttribute: string
 {
-    case LoginName = 'LOGIN_NAME';
     case EmailAddress = 'EMAIL_ADDRESS';
+    case LoginName = 'LOGIN_NAME';
 }

@@ -639,3 +639,26 @@ it('always sends through the Guzzle sender regardless of the Saloon default', fu
 
     expect($client->connector()->sender())->toBeInstanceOf(GuzzleSender::class);
 });
+
+it('aborts a transfer that announces or delivers more than the response limit', function (): void {
+    [$client, $mock] = snowflakeWith(
+        [MockResponse::make(jsonFixture('statement_200_single_partition'))],
+        null,
+        new Options(maxResponseBytes: 1000),
+    );
+
+    $client->execute(Statement::make('SELECT 1'));
+
+    $progress = lastPendingRequest($mock)->config()->get('progress');
+
+    expect($progress)->toBeCallable();
+    $progress(0, 0);
+    $progress(1000, 1000);
+
+    expect(fn () => $progress(1001, 10))->toThrow(RuntimeException::class, 'exceeded the limit of 1000 bytes')
+        ->and(fn () => $progress(0, 1001))->toThrow(RuntimeException::class, 'exceeded the limit of 1000 bytes');
+});
+
+it('refuses a response limit below one byte', function (): void {
+    new Options(maxResponseBytes: 0);
+})->throws(InvalidArgumentException::class);

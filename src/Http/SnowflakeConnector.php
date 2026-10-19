@@ -11,6 +11,7 @@ use InterWorks\SnowflakeApi\Support\AccountUrl;
 use Saloon\Http\Auth\TokenAuthenticator;
 use Saloon\Http\Connector;
 use Saloon\Http\Senders\GuzzleSender;
+use RuntimeException;
 
 /**
  * The Saloon connector for one Snowflake account and one credential. It never retries and never logs.
@@ -42,15 +43,23 @@ final class SnowflakeConnector extends Connector
      * Transport safety settings and the connect timeout. The request sets the total timeout from its statement.
      *
      * Redirects are off because following one would resend a statement, possibly to another host. Certificate
-     * verification is stated explicitly rather than left to the client default.
+     * verification is stated explicitly rather than left to the client default. The progress callback aborts a
+     * transfer that announces or delivers more bytes than Options::$maxResponseBytes; it counts bytes on the wire.
      *
      * @return array<string, mixed>
      */
     protected function defaultConfig(): array
     {
+        $limit = $this->options->maxResponseBytes;
+
         return [
             'allow_redirects' => false,
             'connect_timeout' => $this->options->connectTimeoutSeconds,
+            'progress' => static function (int|float $expected, int|float $received) use ($limit): void {
+                if ($expected > $limit || $received > $limit) {
+                    throw new RuntimeException(sprintf('The response exceeded the limit of %d bytes.', $limit));
+                }
+            },
             'verify' => true,
         ];
     }

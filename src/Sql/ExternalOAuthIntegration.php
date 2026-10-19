@@ -71,16 +71,6 @@ final class ExternalOAuthIntegration
         ]);
     }
 
-    /**
-     * The statement that asks Snowflake whether it accepts an External OAuth token.
-     *
-     * @throws InvalidArgumentException when the token is empty or contains a control character.
-     */
-    public static function verifyTokenSql(#[SensitiveParameter] string $jwt): string
-    {
-        return 'SELECT SYSTEM$VERIFY_EXTERNAL_OAUTH_TOKEN(' . self::literal($jwt, 'token') . ');';
-    }
-
     private static function isHttpsUrl(string $url): bool
     {
         $parts = parse_url($url);
@@ -109,5 +99,15 @@ final class ExternalOAuthIntegration
         }
 
         return "'" . str_replace(['\\', "'"], ['\\\\', "''"], $value) . "'";
+    }
+
+    /**
+     * The statement that asks Snowflake whether it accepts an External OAuth token.
+     *
+     * @throws InvalidArgumentException when the token is empty or contains a control character.
+     */
+    public static function verifyTokenSql(#[SensitiveParameter] string $jwt): string
+    {
+        return 'SELECT SYSTEM$VERIFY_EXTERNAL_OAUTH_TOKEN(' . self::literal($jwt, 'token') . ');';
     }
 }

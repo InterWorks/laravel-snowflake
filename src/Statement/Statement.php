@@ -40,20 +40,11 @@ final class Statement
     {
     }
 
-    /**
-     * Creates a statement from SQL text.
-     *
-     * @throws InvalidArgumentException when the SQL is empty after trimming or is not valid UTF-8.
-     */
-    public static function make(string $sql): self
+    private static function assertUtf8(string $value, string $field): void
     {
-        if (trim($sql) === '') {
-            throw new InvalidArgumentException('The SQL text must not be empty.');
+        if (! mb_check_encoding($value, 'UTF-8')) {
+            throw new InvalidArgumentException(sprintf('The %s must be valid UTF-8.', $field));
         }
-
-        self::assertUtf8($sql, 'SQL text');
-
-        return new self($sql);
     }
 
     /**
@@ -105,6 +96,22 @@ final class Statement
         $clone->database = Identifier::assertUnquoted($identifier, 'database');
 
         return $clone;
+    }
+
+    /**
+     * Creates a statement from SQL text.
+     *
+     * @throws InvalidArgumentException when the SQL is empty after trimming or is not valid UTF-8.
+     */
+    public static function make(string $sql): self
+    {
+        if (trim($sql) === '') {
+            throw new InvalidArgumentException('The SQL text must not be empty.');
+        }
+
+        self::assertUtf8($sql, 'SQL text');
+
+        return new self($sql);
     }
 
     /**
@@ -280,12 +287,5 @@ final class Statement
         $clone->warehouse = Identifier::assertUnquoted($identifier, 'warehouse');
 
         return $clone;
-    }
-
-    private static function assertUtf8(string $value, string $field): void
-    {
-        if (! mb_check_encoding($value, 'UTF-8')) {
-            throw new InvalidArgumentException(sprintf('The %s must be valid UTF-8.', $field));
-        }
     }
 }

@@ -9,12 +9,12 @@ namespace InterWorks\SnowflakeApi\Statement;
  */
 enum BindingType: string
 {
-    case Fixed = 'FIXED';
-    case Real = 'REAL';
-    case Text = 'TEXT';
     case Binary = 'BINARY';
     case Boolean = 'BOOLEAN';
     case Date = 'DATE';
+    case Fixed = 'FIXED';
+    case Real = 'REAL';
+    case Text = 'TEXT';
     case Time = 'TIME';
     case TimestampLtz = 'TIMESTAMP_LTZ';
     case TimestampNtz = 'TIMESTAMP_NTZ';

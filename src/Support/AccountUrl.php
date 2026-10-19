@@ -18,6 +18,14 @@ final readonly class AccountUrl
     }
 
     /**
+     * The base URL of the SQL API v2.
+     */
+    public function apiBaseUrl(): string
+    {
+        return $this->toString() . '/api/v2';
+    }
+
+    /**
      * Parses and validates an account URL.
      *
      * The exception message never contains the URL, because it may carry userinfo with a credential.
@@ -56,14 +64,6 @@ final readonly class AccountUrl
         }
 
         return new self($matches[1]);
-    }
-
-    /**
-     * The base URL of the SQL API v2.
-     */
-    public function apiBaseUrl(): string
-    {
-        return $this->toString() . '/api/v2';
     }
 
     /**
