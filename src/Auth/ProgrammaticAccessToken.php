@@ -11,8 +11,8 @@ use SensitiveParameter;
 /**
  * A Snowflake Programmatic Access Token (PAT).
  *
- * The token lives only inside a closure, so var_export(), print_r(), var_dump(), serialize() and stack traces do not
- * reveal it.
+ * The token lives only inside a closure, masked with a random key, so var_export(), print_r(), var_dump(),
+ * VarDumper (dd()), serialize() and stack traces do not reveal it.
  */
 final readonly class ProgrammaticAccessToken implements Authenticator
 {
@@ -29,7 +29,7 @@ final readonly class ProgrammaticAccessToken implements Authenticator
             );
         }
 
-        $this->reveal = static fn (): string => $token;
+        $this->reveal = Concealed::wrap($token);
     }
 
     /**

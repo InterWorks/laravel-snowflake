@@ -43,7 +43,7 @@ final readonly class Options
     }
 
     /**
-     * Reads the snowflake.* config keys when a Laravel application with a config repository is running.
+     * Reads the snowflake-api.* config keys when a Laravel application with a config repository is running.
      *
      * Falls back to the defaults of this class when there is none.
      *

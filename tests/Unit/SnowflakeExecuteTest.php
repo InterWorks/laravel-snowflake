@@ -644,7 +644,7 @@ it('aborts a transfer that announces or delivers more than the response limit', 
     [$client, $mock] = snowflakeWith(
         [MockResponse::make(jsonFixture('statement_200_single_partition'))],
         null,
-        new Options(maxResponseBytes: 1000),
+        new Options(maxResponseBytes: 100000),
     );
 
     $client->execute(Statement::make('SELECT 1'));
@@ -653,12 +653,46 @@ it('aborts a transfer that announces or delivers more than the response limit', 
 
     expect($progress)->toBeCallable();
     $progress(0, 0);
-    $progress(1000, 1000);
+    $progress(100000, 100000);
 
-    expect(fn () => $progress(1001, 10))->toThrow(RuntimeException::class, 'exceeded the limit of 1000 bytes')
-        ->and(fn () => $progress(0, 1001))->toThrow(RuntimeException::class, 'exceeded the limit of 1000 bytes');
+    expect(fn () => $progress(100001, 10))->toThrow(RuntimeException::class, 'exceeded the limit of 100000 bytes')
+        ->and(fn () => $progress(0, 100001))->toThrow(RuntimeException::class, 'exceeded the limit of 100000 bytes');
 });
 
 it('refuses a response limit below one byte', function (): void {
     new Options(maxResponseBytes: 0);
 })->throws(InvalidArgumentException::class);
+
+it('keeps the sql and bound values out of stack trace arguments', function (): void {
+    $previous = ini_set('zend.exception_ignore_args', '0');
+    [$client] = snowflakeWith([MockResponse::make(jsonFixture('statement_422_sql_error'), 422)]);
+
+    try {
+        $client->execute(Statement::make('SELECT 1')->bind(1, BindingType::Text, 'PII_BOUND_VALUE'));
+        $this->fail('Expected a SqlException.');
+    } catch (SqlException $e) {
+        expect(print_r($e->getTrace(), true))->not->toContain('PII_BOUND_VALUE')
+            ->and(print_r($e->getTrace(), true))->not->toContain('Bearer');
+    } finally {
+        ini_set('zend.exception_ignore_args', $previous === false ? '1' : $previous);
+    }
+});
+
+it('redacts a jwt that Snowflake echoes in an error message', function (): void {
+    $body = json_encode(['code' => '002003', 'message' => "unexpected 'eyJhbGciOi.eyJzdWIiOiIx.sig'"], JSON_THROW_ON_ERROR);
+    [$client] = snowflakeWith([MockResponse::make($body, 422)]);
+
+    expect(fn () => $client->execute(Statement::make('SELECT 1')))
+        ->toThrow(SqlException::class, "unexpected 'eyJ***'");
+});
+
+it('rejects a body that is larger than the limit after decoding', function (): void {
+    [$client] = snowflakeWith(
+        [MockResponse::make(str_repeat(' ', 2_000) . jsonFixture('statement_200_single_partition'), 200)],
+        null,
+        new Options(maxResponseBytes: 1_000)
+    );
+
+    expect(fn () => $client->execute(Statement::make('SELECT 1')))
+        ->toThrow(TransportException::class, 'exceeded the limit of 1000 bytes');
+});

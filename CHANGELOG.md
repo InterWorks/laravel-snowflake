@@ -23,7 +23,14 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Security
 
-- Transfers are aborted past `max_response_bytes` (default 64 MiB, counted on the wire).
+- Tokens are held XOR-masked with a random key, so Symfony VarDumper (`dd()`, error pages), array casts and reflection
+  do not reveal them.
+- `Snowflake::execute()` and the request constructor mark the statement `#[SensitiveParameter]`, keeping SQL and bound
+  values out of stack trace arguments.
+- Exception messages mask JWT-shaped strings that Snowflake echoes back, as well as `Bearer` credentials.
+- The response size limit also applies to the decoded body, so a compressed response cannot expand past it.
+- Account URL hosts with empty labels or labels starting or ending in a hyphen are rejected.
+- Transfers are aborted past `max_response_bytes` (default 64 MiB, counted on the wire and again on the decoded body).
 - Redirects are disabled, so a statement is never resent and a `Location` header is never followed.
 - Certificate verification is stated explicitly, and the connector is pinned to the Guzzle sender so a
   `saloon.default_sender` override cannot route requests through a client that records headers.

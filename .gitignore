@@ -1,6 +1,10 @@
 /vendor/
 /composer.lock
 /.env
+/.env.*
+/auth.json
+*.pem
+*.key
 /.phpunit.cache/
 /.phpunit.result.cache
 /.idea/

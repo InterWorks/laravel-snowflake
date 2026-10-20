@@ -11,8 +11,8 @@ use SensitiveParameter;
 /**
  * A caller-supplied OAuth access token, for example a short-lived External OAuth JWT.
  *
- * The token lives only inside a closure, so var_export(), print_r(), var_dump(), serialize() and stack traces do not
- * reveal it.
+ * The token lives only inside a closure, masked with a random key, so var_export(), print_r(), var_dump(),
+ * VarDumper (dd()), serialize() and stack traces do not reveal it.
  */
 final readonly class OAuthAccessToken implements Authenticator
 {
@@ -27,7 +27,7 @@ final readonly class OAuthAccessToken implements Authenticator
             throw new InvalidArgumentException('The OAuth access token must be a non-empty string of visible ASCII.');
         }
 
-        $this->reveal = static fn (): string => $token;
+        $this->reveal = Concealed::wrap($token);
     }
 
     /**

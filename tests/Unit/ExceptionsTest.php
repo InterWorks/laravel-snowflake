@@ -62,5 +62,6 @@ it('redacts bearer credentials from any message', function (string $message, str
     'lowercase' => ['bearer s3cret', 'Bearer ***'],
     'multiple spaces' => ["Bearer   s3cret\tnext", "Bearer ***\tnext"],
     'twice' => ['Bearer s3cret and Bearer s3cret', 'Bearer *** and Bearer ***'],
+    'jwt in sql error' => ["unexpected 'eyJhbGciOi.eyJzdWIiOiIx-_.sig_nature'", "unexpected 'eyJ***'"],
     'untouched' => ['SQL compilation error: object does not exist', 'SQL compilation error: object does not exist'],
 ]);

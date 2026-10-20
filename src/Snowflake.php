@@ -19,6 +19,7 @@ use InterWorks\SnowflakeApi\Result\StatementResult;
 use InterWorks\SnowflakeApi\Statement\Statement;
 use InterWorks\SnowflakeApi\Support\AccountUrl;
 use JsonException;
+use SensitiveParameter;
 use Saloon\Http\Response;
 use Throwable;
 
@@ -43,7 +44,7 @@ final class Snowflake
     /**
      * @param array<array-key, mixed> $body
      */
-    private static function buildResult(array $body, int $elapsedMilliseconds): StatementResult
+    private static function buildResult(#[SensitiveParameter] array $body, int $elapsedMilliseconds): StatementResult
     {
         $meta = $body['resultSetMetaData'] ?? null;
         $data = $body['data'] ?? null;
@@ -145,7 +146,7 @@ final class Snowflake
      * @throws RateLimitedException           429.
      * @throws TransportException             connection failure, HTTP timeout, 5xx, any other status, bad body.
      */
-    public function execute(Statement $statement): StatementResult
+    public function execute(#[SensitiveParameter] Statement $statement): StatementResult
     {
         $request = new SubmitStatementRequest($statement, $this->options->httpTimeoutBufferSeconds);
         $startedAt = hrtime(true);
@@ -158,7 +159,16 @@ final class Snowflake
 
         $elapsedMilliseconds = intdiv(hrtime(true) - $startedAt, 1_000_000);
         $status = $response->status();
-        $body = self::decode($response->body());
+        $raw = $response->body();
+
+        if (strlen($raw) > $this->options->maxResponseBytes) {
+            throw new TransportException(
+                sprintf('The Snowflake response exceeded the limit of %d bytes.', $this->options->maxResponseBytes),
+                $status
+            );
+        }
+
+        $body = self::decode($raw);
 
         if ($status === 200) {
             if ($body === null) {
@@ -181,8 +191,11 @@ final class Snowflake
     /**
      * @param array<array-key, mixed> $body
      */
-    private static function failure(Response $response, int $status, array $body): SnowflakeException
-    {
+    private static function failure(
+        #[SensitiveParameter] Response $response,
+        int $status,
+        #[SensitiveParameter] array $body
+    ): SnowflakeException {
         $message = self::string($body, 'message');
         $code = self::string($body, 'code');
         $handle = self::string($body, 'statementHandle');

@@ -11,7 +11,7 @@ use InterWorks\SnowflakeApi\Exceptions\InvalidArgumentException;
  */
 final readonly class AccountUrl
 {
-    private const PATTERN = '#^https://([a-z0-9][a-z0-9.-]*\.snowflakecomputing\.(?:com|cn))/?$#D';
+    private const PATTERN = '#^https://((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+snowflakecomputing\.(?:com|cn))/?$#D';
 
     private function __construct(private string $host)
     {

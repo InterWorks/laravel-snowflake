@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace InterWorks\SnowflakeApi\Http\Requests;
 
 use InterWorks\SnowflakeApi\Statement\Statement;
+use SensitiveParameter;
 use Saloon\Contracts\Body\HasBody;
 use Saloon\Enums\Method;
 use Saloon\Http\Request;
@@ -20,7 +21,7 @@ final class SubmitStatementRequest extends Request implements HasBody
     protected Method $method = Method::POST;
 
     public function __construct(
-        private readonly Statement $statement,
+        #[SensitiveParameter] private readonly Statement $statement,
         private readonly int $httpTimeoutBufferSeconds = 5,
     ) {
     }

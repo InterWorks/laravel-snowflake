@@ -104,8 +104,9 @@ Keep the account URL in your own configuration. Never take it from user input (s
 | `Auth\OAuthAccessToken` | `OAUTH` | A short-lived External OAuth JWT or any OAuth access token you hold |
 | `Auth\ProgrammaticAccessToken` | `PROGRAMMATIC_ACCESS_TOKEN` | A Snowflake PAT, handy for trying the package against a real account |
 
-The token is stored inside a closure, so `var_dump`, `print_r`, `var_export`, `json_encode`, `serialize()` and stack
-traces do not show it, and the package asks for it once per request without caching it. Tokens must be non-empty,
+The token is stored inside a closure, masked with a random key, so `dd()`, `var_dump`, `print_r`, `var_export`,
+`json_encode`, `serialize()` and stack traces do not show it (this guards against accidental disclosure, not against code
+running inside your process), and the package asks for it once per request without caching it. Tokens must be non-empty,
 visible ASCII, which also rules out header injection.
 
 To authenticate another way, implement `Auth\Authenticator`. For example, key-pair authentication works today if you

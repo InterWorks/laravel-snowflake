@@ -6,6 +6,8 @@ use InterWorks\SnowflakeApi\Auth\Authenticator;
 use InterWorks\SnowflakeApi\Auth\OAuthAccessToken;
 use InterWorks\SnowflakeApi\Auth\ProgrammaticAccessToken;
 use InterWorks\SnowflakeApi\Exceptions\InvalidArgumentException;
+use Symfony\Component\VarDumper\Cloner\VarCloner;
+use Symfony\Component\VarDumper\Dumper\CliDumper;
 
 const FAKE_TOKEN = 'fake-token-9f3a1c.payload.signature';
 
@@ -86,3 +88,20 @@ it('keeps the token out of the stack trace arguments', function (): void {
 
     expect($trace())->not->toContain('secret-value');
 });
+
+it('does not reveal the token to VarDumper, an array cast or reflection of the closure', function (Closure $make): void {
+    $authenticator = $make();
+
+    $dumper = new CliDumper();
+    $dumper->setColors(false);
+    $dump = (string) $dumper->dump((new VarCloner())->cloneVar($authenticator), true);
+
+    $closure = (new ReflectionProperty($authenticator, 'reveal'))->getValue($authenticator);
+    $static = (new ReflectionFunction($closure))->getStaticVariables();
+
+    expect($dump)->not->toContain(FAKE_TOKEN)
+        ->and(print_r((array) $authenticator, true))->not->toContain(FAKE_TOKEN)
+        ->and(implode('', array_map('bin2hex', $static)))->not->toContain(bin2hex(FAKE_TOKEN))
+        ->and($static)->not->toContain(FAKE_TOKEN)
+        ->and($authenticator->token())->toBe(FAKE_TOKEN);
+})->with('authenticators');

@@ -10,7 +10,7 @@ use RuntimeException;
  * Base class of every exception the package throws for a Snowflake call.
  *
  * No previous exception is ever chained: Guzzle and Saloon exceptions carry the request, including the Authorization
- * header. The message is passed through a Bearer-token redaction as a second line of defence.
+ * header. The message is passed through a Bearer-token and JWT redaction as a second line of defence.
  */
 class SnowflakeException extends RuntimeException
 {
@@ -24,10 +24,13 @@ class SnowflakeException extends RuntimeException
     }
 
     /**
-     * Replaces any Bearer credential in the text with "Bearer ***".
+     * Replaces any Bearer credential with "Bearer ***" and any JWT-shaped string with "eyJ***".
      */
     public static function redact(string $message): string
     {
-        return preg_replace('/Bearer\s+\S+/i', 'Bearer ***', $message) ?? 'The message could not be sanitised.';
+        $redacted = preg_replace('/Bearer\s+\S+/i', 'Bearer ***', $message);
+        $redacted = $redacted === null ? null : preg_replace('/eyJ[\w-]+\.[\w-]+(?:\.[\w-]*)?/', 'eyJ***', $redacted);
+
+        return $redacted ?? 'The message could not be sanitised.';
     }
 }

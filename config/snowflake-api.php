@@ -10,6 +10,6 @@ return [
     // Appended to the User-Agent so Snowflake query history can tell consumers apart.
     'user_agent_suffix' => env('SNOWFLAKE_USER_AGENT_SUFFIX'),
     // The transfer is aborted once more than this many bytes arrive (default 64 MiB). The count is bytes on the wire,
-    // before decompression.
+    // before decompression; the decoded body is checked against the same limit.
     'max_response_bytes' => (int) env('SNOWFLAKE_MAX_RESPONSE_BYTES', 67_108_864),
 ];

@@ -31,8 +31,9 @@ Each rule has a reason. Do not weaken one to make a test pass.
 - **Exceptions never chain** the underlying Saloon or Guzzle exception, and their messages never contain a token, a
   header, the request body or the SQL text. Those exceptions carry the `Authorization` header. Every exception test
   asserts this.
-- **Tokens are held in a closure** inside the authenticators and the constructor parameter is `#[SensitiveParameter]`.
-  `var_export` ignores `__debugInfo`, which is why a plain property is not enough.
+- **Tokens are held in a masked closure** (`Auth\Concealed`) inside the authenticators, and the constructor parameter is
+  `#[SensitiveParameter]`. `var_export` ignores `__debugInfo` and VarDumper shows closure variables, which is why a plain
+  property or a plain closure is not enough. `Statement` and `Response` parameters are `#[SensitiveParameter]` too.
 - **Rows are returned untouched** as `string|null`, first partition only. `partitionCount` tells the consumer more
   exists. Casting is the consumer's policy.
 - **Account URL:** `https`, host ending in `snowflakecomputing.com` or `snowflakecomputing.cn`, and no path, query,

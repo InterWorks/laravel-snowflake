@@ -53,6 +53,9 @@ it('rejects an unacceptable account url', function (string $input): void {
     'leading dot' => ['https://.snowflakecomputing.com'],
     'trailing newline' => ["https://acme.snowflakecomputing.com\n"],
     'embedded space' => ['https://acme .snowflakecomputing.com'],
+    'empty label' => ['https://a..snowflakecomputing.com'],
+    'label starts with hyphen' => ['https://-a.snowflakecomputing.com'],
+    'label ends with hyphen' => ['https://a-.snowflakecomputing.com'],
     'double slash path' => ['https://acme.snowflakecomputing.com//'],
 ]);
 
