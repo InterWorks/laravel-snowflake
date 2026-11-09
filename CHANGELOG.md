@@ -32,6 +32,8 @@ All notable changes to this project are documented in this file. The format foll
   values out of stack trace arguments.
 - Exception messages mask JWT-shaped strings that Snowflake echoes back, as well as `Bearer` credentials.
 - The response size limit also applies to the decoded body, so a compressed response cannot expand past it.
+- The pasted-key builder accepts only one PEM `PUBLIC KEY` block or its bare base64 body, so a pasted private key or
+  certificate is refused rather than written into the setup SQL and Snowflake's query history.
 - Account URL hosts with empty labels or labels starting or ending in a hyphen are rejected.
 - Transfers are aborted past `max_response_bytes` (default 64 MiB, counted on the wire and again on the decoded body).
 - Redirects are disabled, so a statement is never resent and a `Location` header is never followed.

@@ -218,6 +218,18 @@ it('rejects an unusable public key', function (string $rsaPublicKey): void {
     'quote inside' => ["MIIB'ABC"],
     'injection' => ["MIIB'); DROP USER admin; --"],
     'non base64' => ['not a key!'],
+    // The private-key headers are split so secret scanners do not mistake these truncated fixtures for real keys.
+    'private key' => ["-----BEGIN PRIVATE" . " KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASC\n-----END PRIVATE" . " KEY-----\n"],
+    'pkcs1 private key' => [
+        "-----BEGIN RSA PRIVATE" . " KEY-----\nMIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn\n-----END RSA PRIVATE" . " KEY-----",
+    ],
+    'pkcs1 public key' => ["-----BEGIN RSA PUBLIC KEY-----\nMIIBCgKCAQEA0Z3VS5JJcds3xfn/ygWy\n-----END RSA PUBLIC KEY-----"],
+    'certificate' => ["-----BEGIN CERTIFICATE-----\nMIIDdzCCAl+gAwIBAgIEAgAAuTANBgkq\n-----END CERTIFICATE-----"],
+    'two blocks' => [
+        "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A\n-----END PUBLIC KEY-----\n"
+        . "-----BEGIN PUBLIC KEY-----\nMIIBCgKCAQEA0Z3VS5JJcds3xfn/ygWy\n-----END PUBLIC KEY-----\n",
+    ],
+    'mismatched armour' => ["-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A\n-----END PRIVATE KEY-----"],
 ]);
 
 it('builds the verify statement with quotes doubled', function (): void {

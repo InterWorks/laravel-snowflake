@@ -254,7 +254,8 @@ $sql = ExternalOAuthIntegration::createSql(
 ```
 
 When Snowflake cannot reach your JWKS URL (an issuer behind a firewall), paste the public key instead. The key is
-accepted as a PEM block or its bare base64 body, and a key rotation needs the statement run again:
+accepted as one PEM `PUBLIC KEY` block or its bare base64 body (any other PEM block, such as a private key, is
+refused), and a key rotation needs the statement run again:
 
 ```php
 $sql = ExternalOAuthIntegration::createSqlWithPublicKey(

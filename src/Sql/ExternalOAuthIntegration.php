@@ -125,12 +125,13 @@ final class ExternalOAuthIntegration
      * The CREATE SECURITY INTEGRATION statement for an External OAuth custom issuer whose public key is pasted into
      * Snowflake, for issuers Snowflake cannot reach. A key rotation on the issuer needs the statement run again.
      *
-     * The key is accepted as a PEM block or as its bare base64 body; the PEM armour and all whitespace are stripped,
-     * because EXTERNAL_OAUTH_RSA_PUBLIC_KEY takes the base64 body on one line. Everything else is as for createSql().
+     * The key is accepted as one PEM PUBLIC KEY block or as its bare base64 body; the armour and all whitespace are
+     * stripped, because EXTERNAL_OAUTH_RSA_PUBLIC_KEY takes the base64 body on one line. Any other PEM block, such as
+     * a private key, a certificate or a PKCS#1 RSA PUBLIC KEY, is refused. Everything else is as for createSql().
      *
      * @param string       $integrationName       an unquoted identifier
      * @param string       $issuer                must equal the token's iss claim byte for byte
-     * @param string       $rsaPublicKey          the issuer's RSA public key, PEM or bare base64
+     * @param string       $rsaPublicKey          the issuer's RSA public key, a PUBLIC KEY block or bare base64
      * @param list<string> $audiences             non-empty
      * @param string       $userMappingClaim      the token claim that identifies the user
      * @param string       $scopeMappingAttribute the token claim that carries the scopes
@@ -152,10 +153,19 @@ final class ExternalOAuthIntegration
         bool $orReplace = false,
         array $allowedRoles = [],
     ): string {
-        $keyBody = (string) preg_replace('/-----[^-]+-----|\s+/', '', $rsaPublicKey);
+        // Only a PUBLIC KEY block is unwrapped. Any other armour (a private key, a certificate) keeps its dashes and
+        // fails the base64 check below, so it is never written into the statement.
+        $pemBlock = '/^\s*-----BEGIN PUBLIC KEY-----(.*?)-----END PUBLIC KEY-----\s*$/s';
+        if (preg_match($pemBlock, $rsaPublicKey, $pem) === 1) {
+            $rsaPublicKey = $pem[1];
+        }
+
+        $keyBody = (string) preg_replace('/\s+/', '', $rsaPublicKey);
 
         if ($keyBody === '' || preg_match('#^[A-Za-z0-9+/]+=*$#', $keyBody) !== 1) {
-            throw new InvalidArgumentException('The RSA public key must be a PEM block or its base64 body.');
+            throw new InvalidArgumentException(
+                'The RSA public key must be one PEM PUBLIC KEY block or its base64 body.'
+            );
         }
 
         return self::build(
