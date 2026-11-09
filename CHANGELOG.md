@@ -18,6 +18,8 @@ All notable changes to this project are documented in this file. The format foll
 - Exception hierarchy mapping Snowflake HTTP statuses to typed exceptions that never expose a token.
 - SQL helpers for External OAuth: `CREATE SECURITY INTEGRATION` with a JWKS URL or a pasted RSA public key, optionally
   as `CREATE OR REPLACE` and with an `EXTERNAL_OAUTH_ALLOWED_ROLES_LIST`, and `SYSTEM$VERIFY_EXTERNAL_OAUTH_TOKEN`.
+- `Identifier::isUnquoted()` and `Identifier::assertUnquoted()` to check unquoted identifiers, for example in form
+  validation.
 - Laravel service provider with one config file.
 - Supports PHP 8.3 and 8.4 on Laravel 12 and 13. Laravel 11 is excluded because every 11.x release has published
   security advisories.

@@ -5,18 +5,14 @@ declare(strict_types=1);
 use InterWorks\SnowflakeApi\Exceptions\InvalidArgumentException;
 use InterWorks\SnowflakeApi\Support\Identifier;
 
-it('accepts a valid unquoted identifier and returns it unchanged', function (string $value): void {
-    expect(Identifier::assertUnquoted($value, 'warehouse'))->toBe($value);
-})->with([
+dataset('valid identifiers', [
     'short' => ['WH'],
     'underscore and dollar' => ['_x$1'],
     'lowercase' => ['analytics_wh'],
     '255 characters' => [str_repeat('A', 255)],
 ]);
 
-it('rejects an invalid identifier', function (string $value): void {
-    Identifier::assertUnquoted($value, 'warehouse');
-})->throws(InvalidArgumentException::class)->with([
+dataset('invalid identifiers', [
     'empty' => [''],
     'leading digit' => ['1WH'],
     'leading dollar' => ['$WH'],
@@ -28,6 +24,19 @@ it('rejects an invalid identifier', function (string $value): void {
     'trailing newline' => ["WH\n"],
     '256 characters' => [str_repeat('A', 256)],
 ]);
+
+it('accepts a valid unquoted identifier and returns it unchanged', function (string $value): void {
+    expect(Identifier::assertUnquoted($value, 'warehouse'))->toBe($value)
+        ->and(Identifier::isUnquoted($value))->toBeTrue();
+})->with('valid identifiers');
+
+it('rejects an invalid identifier', function (string $value): void {
+    Identifier::assertUnquoted($value, 'warehouse');
+})->throws(InvalidArgumentException::class)->with('invalid identifiers');
+
+it('answers no for an invalid identifier without throwing', function (string $value): void {
+    expect(Identifier::isUnquoted($value))->toBeFalse();
+})->with('invalid identifiers');
 
 it('names the field in the message without echoing the value', function (): void {
     try {
