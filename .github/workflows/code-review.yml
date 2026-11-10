@@ -1,0 +1,74 @@
+# Automated pull request review from a model called through OpenRouter.
+#
+# github-actions[bot] posts the verdict as a real review: CHANGES NEEDED requests changes and
+# APPROVED approves (or, where the repository does not let Actions approve, dismisses its own request
+# for changes and posts the approval as a comment). Each push is reviewed again. A standing request for
+# changes is rewritten in place while changes are still needed; an approval is rewritten only when it
+# is already on the current head, and otherwise a new approval is submitted for that head. An approval
+# that had to be posted as a comment is always rewritten in place.
+# Requesting a review on the pull request, or running this workflow by hand with a pull request
+# number, re-reviews even an unchanged head.
+#
+# Pull requests from forks get no secrets, so for them the run skips with a notice.
+#
+# Configuration (Settings > Secrets and variables > Actions):
+#   secrets.CODE_REVIEW_KEY  OpenRouter API key (required)
+#   vars.REVIEW_MODEL        full OpenRouter model id (optional)
+#   vars.REVIEW_EFFORT       reasoning effort, for example low, medium or high (optional)
+
+name: Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, review_requested]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to review
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # On the job, not the workflow, so a skipped run (a push to a draft) cannot cancel a real review.
+    concurrency:
+      group: code-review-${{ github.event.pull_request.number || inputs.pr_number }}
+      cancel-in-progress: true
+    steps:
+      # Taken from the base branch, so a pull request cannot change the standards it is reviewed
+      # against or the script that holds the key.
+      - name: Checkout the review script and standards (base branch)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.event.repository.default_branch }}
+          persist-credentials: false
+          sparse-checkout: |
+            REVIEW.md
+            .github/scripts/code-review.js
+          sparse-checkout-cone-mode: false
+
+      - name: Skip when the base branch has no reviewer yet
+        if: hashFiles('.github/scripts/code-review.js') == '' || hashFiles('REVIEW.md') == ''
+        run: echo "::notice::The base branch has no code review script yet, so this pull request was not reviewed."
+
+      - name: Review
+        if: hashFiles('.github/scripts/code-review.js') != '' && hashFiles('REVIEW.md') != ''
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.CODE_REVIEW_KEY }}
+          REVIEW_MODEL: ${{ vars.REVIEW_MODEL || 'openai/gpt-6.1-sol' }}
+          REVIEW_EFFORT: ${{ vars.REVIEW_EFFORT || 'medium' }}
+          REVIEW_PR_NUMBER: ${{ inputs.pr_number }}
+        with:
+          script: |
+            const run = require('./.github/scripts/code-review.js');
+            await run({ github, context, core });

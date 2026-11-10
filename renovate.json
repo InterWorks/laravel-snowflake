@@ -2,5 +2,25 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "local>InterWorks/renovate-config"
-  ]
+  ],
+  "schedule": ["before 9am on Monday"],
+  "timezone": "America/Chicago",
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "dependencyDashboard": true,
+  "packageRules": [
+    {
+      "description": "This is a library, and its ranges span every supported Laravel. Widen a range so a new major adds to it, and leave the old versions installable for downstream apps",
+      "matchManagers": ["composer"],
+      "rangeStrategy": "widen"
+    },
+    {
+      "description": "Group GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions"
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": false
+  }
 }

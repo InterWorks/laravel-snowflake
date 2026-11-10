@@ -1,0 +1,54 @@
+name: Composer Audit
+
+on:
+  pull_request:
+    paths:
+      - composer.json
+      - .github/workflows/composer-audit.yml
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.4'
+          coverage: none
+
+      # Only the runtime dependencies reach the apps that install this package. This job can write
+      # issues, so the resolved packages get no chance to run code.
+      - name: Resolve runtime dependencies
+        run: composer update --no-dev --no-scripts --no-plugins --prefer-dist --no-interaction --no-progress --no-audit
+
+      - name: Run Composer Audit
+        run: composer audit --no-plugins --no-scripts
+
+      - name: Open an issue when the scheduled audit fails
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title='Composer Audit: Fix vulnerable dependencies'
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            echo "Issue #$existing is already open."
+            exit 0
+          fi
+          gh issue create --title "$title" --body "The scheduled Composer audit failed. See $RUN_URL for the advisories."

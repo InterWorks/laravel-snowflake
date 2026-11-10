@@ -26,7 +26,9 @@
         "laravel/pint": "^1.18",
         "orchestra/testbench": "^10.0||^11.0",
         "pestphp/pest": "^4.0",
-        "pestphp/pest-plugin-laravel": "^4.0"
+        "pestphp/pest-plugin-laravel": "^4.0",
+        "php-parallel-lint/php-parallel-lint": "^1.4",
+        "squizlabs/php_codesniffer": "^4.0"
     },
     "autoload": {
         "psr-4": {
@@ -53,7 +55,11 @@
             "@test"
         ],
         "fix": "vendor/bin/pint",
-        "lint": "vendor/bin/pint --test",
+        "lint": [
+            "vendor/bin/parallel-lint --show-deprecated config src tests",
+            "vendor/bin/pint --test",
+            "vendor/bin/phpcs"
+        ],
         "test": "vendor/bin/pest",
         "test:live": "vendor/bin/pest --group=live"
     },

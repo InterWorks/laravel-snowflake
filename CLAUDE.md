@@ -15,7 +15,8 @@ Anything on the README roadmap is not built until it is asked for, even if it lo
 ## Commands
 
 - Install: `composer install`
-- Everything CI runs: `composer check` (Pint, PHPStan level 8, Pest including architecture tests)
+- The main CI checks: `composer check` (parallel-lint, Pint, PHPCS, PHPStan level 8, Pest including architecture tests).
+  CI also runs coverage, mutation tests and an install into a new Laravel app. See `.github/workflows/`.
 - Tests only: `composer test`. Style fix: `composer fix`.
 - Live test: `composer test:live`, only with `SNOWFLAKE_LIVE=1`, `SNOWFLAKE_ACCOUNT_URL` and `SNOWFLAKE_PAT` exported in
   the shell. Never write those values into any file in this repository.
@@ -68,10 +69,11 @@ Each rule has a reason. Do not weaken one to make a test pass.
 
 ## Git and releases
 
-- Default branch `main`. Short-lived branches with a descriptive name, merged only when `composer check` passes in CI.
+- Default branch `main`. Short-lived branches with a descriptive name, squash-merged through a pull request once CI and the
+  automated review (`REVIEW.md`) pass.
 - Commit messages in the imperative, one logical change per commit.
 - Never commit `vendor/`, `.env`, `composer.lock` or any file containing a credential.
-- Supported matrix: PHP 8.3 and 8.4 on Laravel 12 and 13 (CI covers all four). Laravel 11 is excluded because every
+- Supported matrix: PHP 8.3, 8.4 and 8.5 on Laravel 12 and 13 (CI covers all six). Laravel 11 is excluded because every
   11.x release has published security advisories.
 - Release: update `CHANGELOG.md`, make sure CI is green and the live test has been run by hand, tag `vX.Y.Z`. Packagist
   updates from the tag.

@@ -23,13 +23,14 @@ composer install
 composer check
 ```
 
-`composer check` is what CI runs: Pint (style), PHPStan level 8 (types) and Pest (tests, including architecture tests).
+`composer check` runs the main CI checks: parallel-lint (syntax), Pint and PHPCS (style), PHPStan level 8 (types) and Pest
+(tests, including architecture tests). CI also runs coverage, mutation tests and an install into a new Laravel app.
 It needs no network and no Snowflake account. A fresh checkout should pass on the first run. If it does not, stop and
 find out why before changing anything.
 
 | Command | Does |
 | --- | --- |
-| `composer check` | Everything CI runs |
+| `composer check` | The main CI checks |
 | `composer test` | Pest only |
 | `composer analyse` | PHPStan only |
 | `composer fix` | Applies Pint's fixes, including method order |
@@ -47,7 +48,7 @@ composer require "interworks/laravel-snowflake:@dev"
 
 ## 3. The map
 
-```
+```text
 src/
 ├── Snowflake.php                  entry point; execute() sends the request and maps the response
 ├── Options.php                    timeouts, user agent suffix, response size limit
@@ -198,7 +199,7 @@ before starting.
 
 1. Update `CHANGELOG.md`: move `Unreleased` entries under the new version with a date.
 2. Update `Snowflake::VERSION`, which feeds the User-Agent. Search for the old version string to catch the rest.
-3. Confirm CI is green on all four jobs (PHP 8.3 and 8.4, Laravel 12 and 13).
+3. Confirm the `Tests passed` and `Lint passed` checks are green on `main`.
 4. Run `composer test:live` by hand and keep the output.
 5. Tag `vX.Y.Z` on `main`. Packagist picks it up from the repository hook.
 6. In a scratch project, `composer require interworks/laravel-snowflake:X.Y.Z` and run the README quick start with
