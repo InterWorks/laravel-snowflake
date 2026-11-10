@@ -20,7 +20,7 @@ final class Identifier
      */
     public static function assertUnquoted(string $value, string $field): string
     {
-        if (!self::isUnquoted($value)) {
+        if (! self::isUnquoted($value)) {
             throw new InvalidArgumentException(
                 sprintf('The %s must be an unquoted Snowflake identifier of 1 to 255 characters.', $field)
             );

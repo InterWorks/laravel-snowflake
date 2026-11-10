@@ -72,6 +72,7 @@ final class ExternalOAuthIntegration
             '  EXTERNAL_OAUTH_ANY_ROLE_MODE = ' . ($anyRoleMode ? "'ENABLE'" : "'DISABLE'") . ';',
         ]);
     }
+
     /**
      * The CREATE SECURITY INTEGRATION statement for an External OAuth custom issuer whose keys Snowflake fetches
      * from a JWKS URL. Keys can rotate on the issuer without a change in Snowflake.
