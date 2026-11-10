@@ -671,8 +671,15 @@ it('keeps the sql and bound values out of stack trace arguments', function (): v
         $client->execute(Statement::make('SELECT 1')->bind(1, BindingType::Text, 'PII_BOUND_VALUE'));
         $this->fail('Expected a SqlException.');
     } catch (SqlException $e) {
-        expect(print_r($e->getTrace(), true))->not->toContain('PII_BOUND_VALUE')
-            ->and(print_r($e->getTrace(), true))->not->toContain('Bearer');
+        // The test runner's own frames are huge and hold other tests' sample strings, some containing 'Bearer'.
+        $packageFrames = array_filter(
+            $e->getTrace(),
+            fn (array $frame): bool => str_starts_with($frame['class'] ?? '', 'InterWorks\\SnowflakeApi\\')
+        );
+
+        expect($packageFrames)->not->toBeEmpty()
+            ->and(print_r($packageFrames, true))->not->toContain('PII_BOUND_VALUE')
+            ->and(print_r($packageFrames, true))->not->toContain('Bearer');
     } finally {
         ini_set('zend.exception_ignore_args', $previous === false ? '1' : $previous);
     }
