@@ -121,7 +121,7 @@ Break one of these and you have changed the package's contract. A test must fail
 | Exceptions carry no token, SQL or headers, and no previous exception | `Snowflake::describe()` copies only class and message; `SnowflakeException::redact()` masks `Bearer ...` | `SnowflakeExecuteTest` ("never leaks"), `ExceptionsTest` |
 | Rows are untouched strings | `rowsFrom()` rejects any cell that is not a string or null | `SnowflakeExecuteTest` |
 | Only trusted hosts | `AccountUrl` allows only https hosts under `snowflakecomputing.com` or `.cn` | `AccountUrlTest` |
-| Only plain identifiers | `Identifier::assertUnquoted()` | `IdentifierTest` |
+| Only plain identifiers | `Identifier::isUnquoted()`, which `Identifier::assertUnquoted()` calls | `IdentifierTest` |
 | No logging, debug output, curl or direct Guzzle | Architecture tests | `tests/Arch/ArchTest.php` |
 | Bounded responses | `progress` callback in the connector | `SnowflakeExecuteTest` |
 | Output is escaped in generated SQL | `ExternalOAuthIntegration::literal()` doubles quotes and backslashes | `ExternalOAuthIntegrationTest` |

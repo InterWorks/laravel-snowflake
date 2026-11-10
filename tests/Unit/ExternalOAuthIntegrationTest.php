@@ -128,6 +128,110 @@ it('rejects invalid arguments', function (array $overrides): void {
     'empty integration name' => [['integrationName' => '']],
 ]);
 
+it('limits the integration to the allowed roles, exactly as given, before the any-role line', function (): void {
+    $sql = createIntegrationSql(['anyRoleMode' => false, 'allowedRoles' => ['curator_reader', 'REPORTING']]);
+
+    expect($sql)->toContain(<<<'SQL'
+  EXTERNAL_OAUTH_SCOPE_MAPPING_ATTRIBUTE = 'scp'
+  EXTERNAL_OAUTH_ALLOWED_ROLES_LIST = ('curator_reader', 'REPORTING')
+  EXTERNAL_OAUTH_ANY_ROLE_MODE = 'DISABLE';
+SQL)
+        ->and(createIntegrationSql())->not->toContain('ALLOWED_ROLES_LIST');
+
+    $withKey = ExternalOAuthIntegration::createSqlWithPublicKey(
+        integrationName: 'APP_OAUTH',
+        issuer: 'https://app.example.com',
+        rsaPublicKey: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A',
+        audiences: ['my-app'],
+        allowedRoles: ['CURATOR_READER'],
+    );
+
+    expect($withKey)->toContain("  EXTERNAL_OAUTH_ALLOWED_ROLES_LIST = ('CURATOR_READER')\n");
+});
+
+it('refuses an allowed role that is not an unquoted identifier', function (string $role): void {
+    createIntegrationSql(['allowedRoles' => [$role]]);
+})->throws(InvalidArgumentException::class)->with([
+    'empty' => [''],
+    'quoted' => ['"Reader"'],
+    'space' => ['READ ER'],
+    'injection' => ["R'); DROP USER admin; --"],
+]);
+
+it('emits CREATE OR REPLACE when asked', function (): void {
+    $sql = createIntegrationSql(['orReplace' => true]);
+
+    expect($sql)->toStartWith('CREATE OR REPLACE SECURITY INTEGRATION APP_OAUTH')
+        ->and(createIntegrationSql())->toStartWith('CREATE SECURITY INTEGRATION APP_OAUTH');
+});
+
+it('builds the exact pasted-key statement from a PEM block', function (): void {
+    $pem = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A\nMIIBCgKCAQEA0Z3VS5JJcds3xfn/ygWy\n-----END PUBLIC KEY-----\n";
+
+    $sql = ExternalOAuthIntegration::createSqlWithPublicKey(
+        integrationName: 'APP_OAUTH',
+        issuer: 'https://app.example.com',
+        rsaPublicKey: $pem,
+        audiences: ['https://myorg-myaccount.snowflakecomputing.com'],
+        orReplace: true,
+    );
+
+    expect($sql)->toBe(<<<'SQL'
+CREATE OR REPLACE SECURITY INTEGRATION APP_OAUTH
+  TYPE = EXTERNAL_OAUTH
+  ENABLED = TRUE
+  EXTERNAL_OAUTH_TYPE = CUSTOM
+  EXTERNAL_OAUTH_ISSUER = 'https://app.example.com'
+  EXTERNAL_OAUTH_RSA_PUBLIC_KEY = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0Z3VS5JJcds3xfn/ygWy'
+  EXTERNAL_OAUTH_AUDIENCE_LIST = ('https://myorg-myaccount.snowflakecomputing.com')
+  EXTERNAL_OAUTH_TOKEN_USER_MAPPING_CLAIM = 'email'
+  EXTERNAL_OAUTH_SNOWFLAKE_USER_MAPPING_ATTRIBUTE = 'EMAIL_ADDRESS'
+  EXTERNAL_OAUTH_SCOPE_MAPPING_ATTRIBUTE = 'scp'
+  EXTERNAL_OAUTH_ANY_ROLE_MODE = 'ENABLE';
+SQL);
+});
+
+it('accepts a bare base64 key body and matches the JWKS variant line for line otherwise', function (): void {
+    $withKey = ExternalOAuthIntegration::createSqlWithPublicKey(
+        'APP_OAUTH',
+        'https://app.example.com',
+        'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A',
+        ['my-app'],
+    );
+    $withUrl = createIntegrationSql(['audiences' => ['my-app']]);
+
+    $strip = static fn (string $sql): array => array_values(array_filter(
+        explode("\n", $sql),
+        static fn (string $line): bool => ! str_contains($line, 'EXTERNAL_OAUTH_RSA_PUBLIC_KEY')
+            && ! str_contains($line, 'EXTERNAL_OAUTH_JWS_KEYS_URL'),
+    ));
+
+    expect($withKey)->toContain("EXTERNAL_OAUTH_RSA_PUBLIC_KEY = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A'")
+        ->and($strip($withKey))->toBe($strip($withUrl));
+});
+
+it('rejects an unusable public key', function (string $rsaPublicKey): void {
+    ExternalOAuthIntegration::createSqlWithPublicKey('APP_OAUTH', 'https://app.example.com', $rsaPublicKey, ['my-app']);
+})->throws(InvalidArgumentException::class)->with([
+    'empty' => [''],
+    'only armour' => ["-----BEGIN PUBLIC KEY-----\n-----END PUBLIC KEY-----"],
+    'quote inside' => ["MIIB'ABC"],
+    'injection' => ["MIIB'); DROP USER admin; --"],
+    'non base64' => ['not a key!'],
+    // The private-key headers are split so secret scanners do not mistake these truncated fixtures for real keys.
+    'private key' => ["-----BEGIN PRIVATE" . " KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASC\n-----END PRIVATE" . " KEY-----\n"],
+    'pkcs1 private key' => [
+        "-----BEGIN RSA PRIVATE" . " KEY-----\nMIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn\n-----END RSA PRIVATE" . " KEY-----",
+    ],
+    'pkcs1 public key' => ["-----BEGIN RSA PUBLIC KEY-----\nMIIBCgKCAQEA0Z3VS5JJcds3xfn/ygWy\n-----END RSA PUBLIC KEY-----"],
+    'certificate' => ["-----BEGIN CERTIFICATE-----\nMIIDdzCCAl+gAwIBAgIEAgAAuTANBgkq\n-----END CERTIFICATE-----"],
+    'two blocks' => [
+        "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A\n-----END PUBLIC KEY-----\n"
+        . "-----BEGIN PUBLIC KEY-----\nMIIBCgKCAQEA0Z3VS5JJcds3xfn/ygWy\n-----END PUBLIC KEY-----\n",
+    ],
+    'mismatched armour' => ["-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A\n-----END PRIVATE KEY-----"],
+]);
+
 it('builds the verify statement with quotes doubled', function (): void {
     expect(ExternalOAuthIntegration::verifyTokenSql('aaa.bbb.ccc'))
         ->toBe("SELECT SYSTEM\$VERIFY_EXTERNAL_OAUTH_TOKEN('aaa.bbb.ccc');")

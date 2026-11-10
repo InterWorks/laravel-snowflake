@@ -253,9 +253,27 @@ $sql = ExternalOAuthIntegration::createSql(
 );
 ```
 
+When Snowflake cannot reach your JWKS URL (an issuer behind a firewall), paste the public key instead. The key is
+accepted as one PEM `PUBLIC KEY` block or its bare base64 body (any other PEM block, such as a private key, is
+refused), and a key rotation needs the statement run again:
+
+```php
+$sql = ExternalOAuthIntegration::createSqlWithPublicKey(
+    integrationName: 'APP_OAUTH',
+    issuer: 'https://app.example.com',
+    rsaPublicKey: $publicKeyPem,
+    audiences: ['https://myorg-myaccount.snowflakecomputing.com'],
+    orReplace: true,                                       // CREATE OR REPLACE, so re-running is safe
+);
+```
+
 Defaults map the token's `email` claim to the Snowflake user's `EMAIL_ADDRESS` and enable any-role mode. Override
-`userMappingClaim`, `mappingAttribute`, `anyRoleMode` and `scopeMappingAttribute` for other setups. When Snowflake
-rejects a token, an administrator can ask it why:
+`userMappingClaim`, `mappingAttribute`, `anyRoleMode` and `scopeMappingAttribute` for other setups, and pass
+`orReplace: true` to either builder when the statement must be re-runnable. To pin the roles a token may use, pass
+`anyRoleMode: false` together with `allowedRoles: ['APP_READER']`. That emits `EXTERNAL_OAUTH_ANY_ROLE_MODE = 'DISABLE'`
+and `EXTERNAL_OAUTH_ALLOWED_ROLES_LIST`, so Snowflake refuses a token for any other role even when the issuer's signing
+key leaks. Do not rely on the allowlist while any-role mode is on. When Snowflake rejects a token, an administrator can
+ask it why:
 
 ```php
 ExternalOAuthIntegration::verifyTokenSql($jwt);   // SELECT SYSTEM$VERIFY_EXTERNAL_OAUTH_TOKEN('...');

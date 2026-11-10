@@ -16,7 +16,10 @@ All notable changes to this project are documented in this file. The format foll
   session parameters.
 - Typed statement result with columns, rows, row count, partition count, statement handle and elapsed time.
 - Exception hierarchy mapping Snowflake HTTP statuses to typed exceptions that never expose a token.
-- SQL helpers for External OAuth: `CREATE SECURITY INTEGRATION` and `SYSTEM$VERIFY_EXTERNAL_OAUTH_TOKEN`.
+- SQL helpers for External OAuth: `CREATE SECURITY INTEGRATION` with a JWKS URL or a pasted RSA public key, optionally
+  as `CREATE OR REPLACE` and with an `EXTERNAL_OAUTH_ALLOWED_ROLES_LIST`, and `SYSTEM$VERIFY_EXTERNAL_OAUTH_TOKEN`.
+- `Identifier::isUnquoted()` and `Identifier::assertUnquoted()` to check unquoted identifiers, for example in form
+  validation.
 - Laravel service provider with one config file.
 - Supports PHP 8.3 and 8.4 on Laravel 12 and 13. Laravel 11 is excluded because every 11.x release has published
   security advisories.
@@ -29,6 +32,8 @@ All notable changes to this project are documented in this file. The format foll
   values out of stack trace arguments.
 - Exception messages mask JWT-shaped strings that Snowflake echoes back, as well as `Bearer` credentials.
 - The response size limit also applies to the decoded body, so a compressed response cannot expand past it.
+- The pasted-key builder accepts only one PEM `PUBLIC KEY` block or its bare base64 body, so a pasted private key or
+  certificate is refused rather than written into the setup SQL and Snowflake's query history.
 - Account URL hosts with empty labels or labels starting or ending in a hyphen are rejected.
 - Transfers are aborted past `max_response_bytes` (default 64 MiB, counted on the wire and again on the decoded body).
 - Redirects are disabled, so a statement is never resent and a `Location` header is never followed.

@@ -20,12 +20,21 @@ final class Identifier
      */
     public static function assertUnquoted(string $value, string $field): string
     {
-        if (preg_match(self::PATTERN, $value) !== 1) {
+        if (! self::isUnquoted($value)) {
             throw new InvalidArgumentException(
                 sprintf('The %s must be an unquoted Snowflake identifier of 1 to 255 characters.', $field)
             );
         }
 
         return $value;
+    }
+
+    /**
+     * Whether the value is a valid unquoted identifier, for callers such as form validation that need a yes or no
+     * rather than an exception.
+     */
+    public static function isUnquoted(string $value): bool
+    {
+        return preg_match(self::PATTERN, $value) === 1;
     }
 }
