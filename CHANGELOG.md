@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+
+- Supports PHP 8.5, now tested in CI.
+
 ## [0.1.0] - 2026-11-10
 
 ### Added

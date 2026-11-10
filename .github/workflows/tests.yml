@@ -1,0 +1,175 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # The package has no lock file, so each run resolves the newest dependencies. A weekly run catches
+  # a Saloon or Laravel release that breaks the package before a pull request or a user finds it.
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: PHP ${{ matrix.php }}, Laravel ${{ matrix.laravel }} (${{ matrix.stability }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4', '8.5']
+        laravel: ['12', '13']
+        stability: [prefer-stable]
+        # The lowest versions composer.json allows, on the oldest PHP.
+        include:
+          - php: '8.3'
+            laravel: '12'
+            stability: prefer-lowest
+          - php: '8.3'
+            laravel: '13'
+            stability: prefer-lowest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      # Testbench's major version is always two behind Laravel's.
+      - name: Install dependencies
+        env:
+          LARAVEL: ${{ matrix.laravel }}
+          STABILITY: ${{ matrix.stability }}
+        run: |
+          composer require --dev "laravel/framework:$LARAVEL.*" "orchestra/testbench:$((LARAVEL - 2)).*" --no-interaction --no-update
+          composer update "--$STABILITY" --prefer-dist --no-interaction --no-progress
+
+      - name: Show installed versions
+        run: composer show --direct
+
+      # --fail-on-skipped guards against a hollow pass, such as a test that skips on one version.
+      - name: Run tests
+        run: vendor/bin/pest --ci --fail-on-skipped
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.4'
+          coverage: pcov
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Run tests with coverage
+        run: vendor/bin/pest --ci --coverage --min=90
+
+  # Pest changes the package's code one small edit at a time and runs the tests that cover each edit.
+  # An edit no test notices is a line that could be broken or removed without CI going red.
+  mutation:
+    name: Mutation tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.4'
+          coverage: pcov
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Run mutation tests
+        run: vendor/bin/pest --mutate --everything --covered-only --parallel --min=87
+
+  # Testbench registers the service provider by hand and never builds the Composer archive, so the
+  # suite above cannot see a broken discovery entry, publish tag or export-ignore line. This installs
+  # the archive a user would download into a new Laravel app.
+  install:
+    name: Install in Laravel ${{ matrix.laravel }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '8.3'
+            laravel: '12'
+          - php: '8.5'
+            laravel: '13'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_sqlite, sqlite3
+          coverage: none
+
+      - name: Build the package archive
+        run: |
+          mkdir "$RUNNER_TEMP/package"
+          git archive HEAD | tar -x -C "$RUNNER_TEMP/package"
+
+      - name: Install into a new Laravel app
+        env:
+          LARAVEL: ${{ matrix.laravel }}
+        run: |
+          composer create-project "laravel/laravel:^$LARAVEL.0" "$RUNNER_TEMP/app" --no-install --no-scripts --prefer-dist --no-interaction --no-progress
+          cd "$RUNNER_TEMP/app"
+          composer config repositories.package path "$RUNNER_TEMP/package"
+          composer require "interworks/laravel-snowflake:*@dev" --prefer-dist --no-interaction --no-progress
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Check discovery, the publish tag and the client
+        working-directory: ${{ runner.temp }}/app
+        env:
+          SNOWFLAKE_CONNECT_TIMEOUT: '7'
+        run: |
+          php artisan package:discover | grep interworks/laravel-snowflake
+          php artisan vendor:publish --tag=snowflake-api-config --no-interaction
+          test -s config/snowflake-api.php
+          php artisan tinker --execute='echo config("snowflake-api.connect_timeout"), "/", get_class(InterWorks\SnowflakeApi\Snowflake::make("https://myorg-myaccount.snowflakecomputing.com", new InterWorks\SnowflakeApi\Auth\OAuthAccessToken("t0ken")));' | tee output.txt
+          grep -qF '7/InterWorks\SnowflakeApi\Snowflake' output.txt
+
+  # The one check the main ruleset requires, so changing the matrix does not mean changing the ruleset.
+  passed:
+    name: Tests passed
+    if: always()
+    needs: [tests, coverage, mutation, install]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail unless every job succeeded
+        env:
+          ALL_SUCCEEDED: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && !contains(needs.*.result, 'skipped') }}
+        run: test "$ALL_SUCCEEDED" = 'true'

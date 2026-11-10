@@ -1,0 +1,24 @@
+# Validates renovate.json with Renovate's own validator. A broken config does not fail any other check:
+# Renovate stops opening pull requests, and the only sign is a warning on the Dependency Dashboard issue.
+name: Renovate Config Check
+
+on:
+  pull_request:
+    paths:
+      - renovate.json
+      - .github/workflows/renovate-config-check.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate renovate.json
+        run: npx --yes --package renovate@41.173.1 -- renovate-config-validator --strict renovate.json

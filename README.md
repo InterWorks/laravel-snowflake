@@ -1,6 +1,6 @@
 # interworks/laravel-snowflake
 
-[![CI](https://github.com/InterWorks/laravel-snowflake/actions/workflows/ci.yml/badge.svg)](https://github.com/InterWorks/laravel-snowflake/actions/workflows/ci.yml)
+[![CI](https://github.com/InterWorks/laravel-snowflake/actions/workflows/tests.yml/badge.svg)](https://github.com/InterWorks/laravel-snowflake/actions/workflows/tests.yml)
 [![PHP](https://img.shields.io/badge/php-%5E8.3-777bb4)](composer.json)
 [![Laravel](https://img.shields.io/badge/laravel-12%20%7C%2013-ff2d20)](composer.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE.md)
@@ -46,7 +46,7 @@ composer require interworks/laravel-snowflake
 
 | Requirement | Supported |
 | --- | --- |
-| PHP | 8.3, 8.4 |
+| PHP | 8.3, 8.4, 8.5 |
 | Laravel | 12, 13 |
 
 Both are tested in CI. Laravel 11 is not supported: Composer refuses to install any 11.x release because of published
@@ -306,7 +306,7 @@ To work on the package itself, start with the [developer walkthrough](docs/WALKT
 
 ```bash
 composer install
-composer check        # Pint, PHPStan level 8, Pest (including architecture tests)
+composer check        # parallel-lint, Pint, PHPCS, PHPStan level 8, Pest (including architecture tests)
 composer fix          # apply code style
 ```
 
