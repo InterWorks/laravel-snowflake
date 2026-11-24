@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+## [0.2.0] - Unreleased
+
 ### Added
 
 - Supports PHP 8.5, now tested in CI.

@@ -183,7 +183,7 @@ Floats lose precision. Keep money as strings and use `bcmath` or a decimal libra
 
 **Only the first partition is returned.** A large result is split into partitions and only the first comes back. If
 `hasMorePartitions()` is true, `rows` is a partial answer, and ignoring that is how reports end up silently wrong.
-Narrow the query, add a `LIMIT`, or wait for partition fetching in 0.2.0.
+Narrow the query, add a `LIMIT`, or wait for partition fetching in 0.3.0.
 
 ## Errors
 
@@ -223,8 +223,8 @@ Every exception obeys three rules, and every test asserts them:
 3. Nothing is resent. After a 5xx or a timeout you cannot know whether the statement ran, and resending an `INSERT`
    could duplicate data.
 
-A 202 means the statement outlived the synchronous wait and may still be running. Version 0.1.0 reports it; polling and
-cancelling arrive in 0.2.0.
+A 202 means the statement outlived the synchronous wait and may still be running. The package reports it; polling and
+cancelling arrive in 0.3.0.
 
 ## Configuration
 
@@ -402,7 +402,7 @@ the package pins the sender so behaviour does not depend on app-level HTTP confi
 Snowflake sent and leaves that choice to the consumer. See [Results](#results) for a ready-made mapping.
 
 **Why only the first partition?** Fetching later partitions is a separate API call with its own failure modes. The
-package reports `partitionCount` so you can detect a partial result, and partition fetching is planned for 0.2.0.
+package reports `partitionCount` so you can detect a partial result, and partition fetching is planned for 0.3.0.
 
 **Why no retries?** A statement may write data. After a timeout or a 5xx you cannot tell whether it ran, so resending
 could duplicate effects. The decision belongs to the caller, who knows whether the statement is idempotent.
@@ -421,8 +421,8 @@ yourself with token type `KEYPAIR_JWT`.
 
 ## Roadmap
 
-- **0.2.0:** poll a statement handle, fetch partition N, cancel a statement, `executeAsync()`.
-- **0.3.0:** key-pair JWT authenticator.
+- **0.3.0:** poll a statement handle, fetch partition N, cancel a statement, `executeAsync()`.
+- **0.4.0:** key-pair JWT authenticator.
 - **Never:** SQL inspection or rewriting, result caching, authorization decisions, value casting policies.
 
 See [CHANGELOG.md](CHANGELOG.md) for released changes.
