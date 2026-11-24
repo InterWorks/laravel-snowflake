@@ -95,8 +95,8 @@ $result = $snowflake->execute(Statement::make('SELECT ...')->bind(1, BindingType
 
 `generateStreamlitEmbedUrl()` follows the same path. It validates the identifiers and the origin first, sends
 `GenerateStreamlitEmbedUrlRequest` (the role travels as `X-Snowflake-Role`), accepts a 200 only when `embed_url` is an
-`https` URL, wraps it in `Result\EmbedUrl`, and calls `failure()` with `forStatement: false`, so 202 and 422 do not
-become statement exceptions.
+`https` URL with a valid host and port (`isEmbedUrl()`), wraps it in `Result\EmbedUrl`, and calls `failure()` with
+`forStatement: false`, so 202 and 422 do not become statement exceptions.
 
 Read `execute()` and the private helpers in `src/Snowflake.php` next to each other. That file is the behaviour contract.
 
@@ -117,8 +117,8 @@ Read `execute()` and the private helpers in `src/Snowflake.php` next to each oth
 Snowflake's error bodies are read defensively: any field may be missing or the wrong type, and a fixed sentence is used
 instead of a missing `message`.
 
-For an embed URL request the table differs in three rows: a 200 needs an `https` `embed_url` (anything else is a
-`TransportException`), and 202 and 422 are `TransportException`.
+For an embed URL request the table differs in three rows: a 200 needs an `https` `embed_url` with a valid host and
+port (anything else is a `TransportException`), and 202 and 422 are `TransportException`.
 
 ## 6. The promises, and where each is enforced
 

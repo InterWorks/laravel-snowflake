@@ -37,11 +37,12 @@ final class Snowflake
     public const VERSION = '0.1.0';
 
     /**
-     * An absolute https URL with a host, no userinfo, and no whitespace or control characters anywhere, which is what
-     * a 200 from generate-embed-url must carry before it can be handed to an iframe.
+     * An absolute https URL whose authority is a DNS host of hyphenated labels and an optional numeric port, with no
+     * userinfo and no whitespace or control characters anywhere: what a 200 from generate-embed-url must carry before
+     * it can be handed to an iframe. The port's range is checked separately, in isEmbedUrl().
      */
-    private const EMBED_URL_PATTERN = '#^https://[^\x00-\x20\x7f/?\#@\\\\:][^\x00-\x20\x7f/?\#@\\\\]*'
-        . '(?:[/?\#][^\x00-\x20\x7f]*)?$#Di';
+    private const EMBED_URL_PATTERN = '#^https://(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]*[a-z0-9])?'
+        . '(?::([0-9]{1,5}))?(?:[/?\#][^\x00-\x20\x7f]*)?$#Di';
 
     private readonly SnowflakeConnector $connector;
 
@@ -264,7 +265,7 @@ final class Snowflake
         if ($status === 200) {
             $url = $body['embed_url'] ?? null;
 
-            if (! is_string($url) || preg_match(self::EMBED_URL_PATTERN, $url) !== 1) {
+            if (! is_string($url) || ! self::isEmbedUrl($url)) {
                 throw new TransportException('Snowflake returned a 200 body without an https embed_url.', 200);
             }
 
@@ -272,6 +273,21 @@ final class Snowflake
         }
 
         throw self::failure($response, $status, $body, forStatement: false);
+    }
+
+    /**
+     * Whether a URL from a generate-embed-url 200 is safe to hand to an iframe: it matches EMBED_URL_PATTERN and any
+     * port is between 1 and 65535.
+     */
+    private static function isEmbedUrl(#[SensitiveParameter] string $url): bool
+    {
+        if (preg_match(self::EMBED_URL_PATTERN, $url, $matches) !== 1) {
+            return false;
+        }
+
+        $port = $matches[1] ?? '';
+
+        return $port === '' || ((int) $port >= 1 && (int) $port <= 65535);
     }
 
     /**

@@ -317,8 +317,9 @@ send it to the browser that asked, and never log, cache or store it. A reload ne
 **Validation before anything is sent.** Database, schema, name and role must be unquoted identifiers. The origin must be
 `https://host` or `https://host:port` (`http://localhost[:port]` is allowed for development) with no path, query,
 fragment or userinfo; it is lowercased and loses a trailing slash and a default port. `Support\ParentOrigin` does this
-check and can be passed instead of a string. A 200 whose `embed_url` is not an `https` URL is a `TransportException`, so
-a `javascript:` URL never reaches your iframe.
+check and can be passed instead of a string. A 200 whose `embed_url` is not an `https` URL with a DNS host, an optional
+port from 1 to 65535, no userinfo and no whitespace or control characters is a `TransportException`, so a `javascript:`
+or malformed URL never reaches your iframe.
 
 **What Snowflake needs**, none of which the package checks:
 

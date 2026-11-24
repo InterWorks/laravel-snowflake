@@ -132,11 +132,17 @@ it('refuses an identifier or origin before sending anything', function (array $a
 // The answer
 // ---------------------------------------------------------------------------------------------------------------------
 
-it('returns the embed url from a 200', function (): void {
-    [$client] = embedClientWith([MockResponse::make(embedUrlBody())]);
+it('returns the embed url from a 200', function (string $url): void {
+    [$client] = embedClientWith([MockResponse::make(embedUrlBody($url))]);
 
-    expect(mintEmbedUrl($client)->url())->toBe(EMBED_URL);
-});
+    expect(mintEmbedUrl($client)->url())->toBe($url);
+})->with([
+    'host, path and query' => [EMBED_URL],
+    'explicit port' => ['https://abc123.snowflake.app:8443/embed?code=single-use-code'],
+    'highest port' => ['https://abc123.snowflake.app:65535/embed?code=single-use-code'],
+    'host only' => ['https://abc123.snowflake.app'],
+    'fragment' => ['https://abc123.snowflake.app#code=single-use-code'],
+]);
 
 it('rejects a 200 without an https embed url', function (string $body): void {
     [$client] = embedClientWith([MockResponse::make($body)]);
@@ -170,6 +176,12 @@ it('rejects a 200 without an https embed url', function (string $body): void {
     'delete character in the query' => [embedUrlBody("https://abc123.snowflake.app/embed?code=single-use-code\x7f")],
     'no host' => [embedUrlBody('https://:443/embed?code=single-use-code')],
     'empty host' => [embedUrlBody('https:///embed?code=single-use-code')],
+    'non-numeric port' => [embedUrlBody('https://abc123.snowflake.app:invalid/embed?code=single-use-code')],
+    'port above 65535' => [embedUrlBody('https://abc123.snowflake.app:99999/embed?code=single-use-code')],
+    'port zero' => [embedUrlBody('https://abc123.snowflake.app:0/embed?code=single-use-code')],
+    'empty port' => [embedUrlBody('https://abc123.snowflake.app:/embed?code=single-use-code')],
+    'underscore in the host' => [embedUrlBody('https://abc_123.snowflake.app/embed?code=single-use-code')],
+    'empty label' => [embedUrlBody('https://abc123..snowflake.app/embed?code=single-use-code')],
 ]);
 
 it('maps 401 and 403 to AuthenticationException', function (int $status): void {
