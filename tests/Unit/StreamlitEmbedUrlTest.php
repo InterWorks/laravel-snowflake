@@ -166,6 +166,10 @@ it('rejects a 200 without an https embed url', function (string $body): void {
     'relative' => [embedUrlBody('/embed?code=single-use-code')],
     'userinfo' => [embedUrlBody('https://evil@abc123.snowflake.app/?code=single-use-code')],
     'whitespace' => [embedUrlBody('https://abc123.snowflake.app/embed?code=single-use-code x')],
+    'control character in the path' => [embedUrlBody("https://abc123.snowflake.app/embed\x01?code=single-use-code")],
+    'delete character in the query' => [embedUrlBody("https://abc123.snowflake.app/embed?code=single-use-code\x7f")],
+    'no host' => [embedUrlBody('https://:443/embed?code=single-use-code')],
+    'empty host' => [embedUrlBody('https:///embed?code=single-use-code')],
 ]);
 
 it('maps 401 and 403 to AuthenticationException', function (int $status): void {

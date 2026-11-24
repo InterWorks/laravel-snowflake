@@ -36,6 +36,13 @@ final class Snowflake
 {
     public const VERSION = '0.1.0';
 
+    /**
+     * An absolute https URL with a host, no userinfo, and no whitespace or control characters anywhere, which is what
+     * a 200 from generate-embed-url must carry before it can be handed to an iframe.
+     */
+    private const EMBED_URL_PATTERN = '#^https://[^\x00-\x20\x7f/?\#@\\\\:][^\x00-\x20\x7f/?\#@\\\\]*'
+        . '(?:[/?\#][^\x00-\x20\x7f]*)?$#Di';
+
     private readonly SnowflakeConnector $connector;
 
     public function __construct(
@@ -257,7 +264,7 @@ final class Snowflake
         if ($status === 200) {
             $url = $body['embed_url'] ?? null;
 
-            if (! is_string($url) || preg_match('#^https://[^\x00-\x20\x7f/?\#@\\\\]+(?:[/?\#]\S*)?$#Di', $url) !== 1) {
+            if (! is_string($url) || preg_match(self::EMBED_URL_PATTERN, $url) !== 1) {
                 throw new TransportException('Snowflake returned a 200 body without an https embed_url.', 200);
             }
 
