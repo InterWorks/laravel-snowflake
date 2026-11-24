@@ -12,20 +12,25 @@ use InterWorks\SnowflakeApi\Exceptions\SnowflakeException;
 use InterWorks\SnowflakeApi\Exceptions\SqlException;
 use InterWorks\SnowflakeApi\Exceptions\StatementStillRunningException;
 use InterWorks\SnowflakeApi\Exceptions\TransportException;
+use InterWorks\SnowflakeApi\Http\Requests\GenerateStreamlitEmbedUrlRequest;
 use InterWorks\SnowflakeApi\Http\Requests\SubmitStatementRequest;
 use InterWorks\SnowflakeApi\Http\SnowflakeConnector;
 use InterWorks\SnowflakeApi\Result\Column;
+use InterWorks\SnowflakeApi\Result\EmbedUrl;
 use InterWorks\SnowflakeApi\Result\StatementResult;
 use InterWorks\SnowflakeApi\Statement\Statement;
 use InterWorks\SnowflakeApi\Support\AccountUrl;
+use InterWorks\SnowflakeApi\Support\Identifier;
+use InterWorks\SnowflakeApi\Support\ParentOrigin;
 use JsonException;
 use SensitiveParameter;
+use Saloon\Http\Request;
 use Saloon\Http\Response;
 use Throwable;
 
 /**
- * The entry point: submits one statement with a caller-supplied credential and returns a typed result or throws a
- * typed exception. It never retries, never caches and never logs.
+ * The entry point: submits one statement, or mints one Streamlit embed URL, with a caller-supplied credential and
+ * returns a typed result or throws a typed exception. It never retries, never caches and never logs.
  */
 final class Snowflake
 {
@@ -149,26 +154,7 @@ final class Snowflake
     public function execute(#[SensitiveParameter] Statement $statement): StatementResult
     {
         $request = new SubmitStatementRequest($statement, $this->options->httpTimeoutBufferSeconds);
-        $startedAt = hrtime(true);
-
-        try {
-            $response = $this->connector->send($request);
-        } catch (Throwable $e) {
-            throw new TransportException('Could not reach Snowflake: ' . self::describe($e));
-        }
-
-        $elapsedMilliseconds = intdiv(hrtime(true) - $startedAt, 1_000_000);
-        $status = $response->status();
-        $raw = $response->body();
-
-        if (strlen($raw) > $this->options->maxResponseBytes) {
-            throw new TransportException(
-                sprintf('The Snowflake response exceeded the limit of %d bytes.', $this->options->maxResponseBytes),
-                $status
-            );
-        }
-
-        $body = self::decode($raw);
+        [$response, $status, $body, $elapsedMilliseconds] = $this->send($request);
 
         if ($status === 200) {
             if ($body === null) {
@@ -178,30 +164,32 @@ final class Snowflake
             return self::buildResult($body, $elapsedMilliseconds);
         }
 
+        throw self::failure($response, $status, $body, forStatement: true);
+    }
+
+    /**
+     * @param array<array-key, mixed>|null $body the decoded body, or null when it was not JSON
+     * @param bool                         $forStatement whether 202 and 422 carry their statement meanings
+     */
+    private static function failure(
+        #[SensitiveParameter] Response $response,
+        int $status,
+        #[SensitiveParameter] ?array $body,
+        bool $forStatement,
+    ): SnowflakeException {
         if ($body === null) {
-            throw new TransportException(
+            return new TransportException(
                 sprintf('Snowflake returned status %d with an unreadable body.', $status),
                 $status
             );
         }
 
-        throw self::failure($response, $status, $body);
-    }
-
-    /**
-     * @param array<array-key, mixed> $body
-     */
-    private static function failure(
-        #[SensitiveParameter] Response $response,
-        int $status,
-        #[SensitiveParameter] array $body
-    ): SnowflakeException {
         $message = self::string($body, 'message');
         $code = self::string($body, 'code');
         $handle = self::string($body, 'statementHandle');
 
         return match (true) {
-            $status === 202 => new StatementStillRunningException(
+            $forStatement && $status === 202 => new StatementStillRunningException(
                 $message ?? 'Snowflake is still running the statement.',
                 $status,
                 $code,
@@ -213,7 +201,7 @@ final class Snowflake
                 $status,
                 $code,
             ),
-            $status === 422 => new SqlException(
+            $forStatement && $status === 422 => new SqlException(
                 $message ?? 'Snowflake could not run the statement.',
                 $status,
                 $code,
@@ -228,6 +216,55 @@ final class Snowflake
             ),
             default => new TransportException($message ?? 'Snowflake did not answer.', $status, $code),
         };
+    }
+
+    /**
+     * Mints a single-use URL that loads a Streamlit in Snowflake app in an iframe on the given origin, as the identity
+     * of this client's credential and with the given role.
+     *
+     * Snowflake requires the role (it never falls back to a default role), the EMBED and USAGE privileges on the app
+     * for that role, and the origin in the account's STREAMLIT_EMBEDDING_CONTROLS. The URL is a bearer credential:
+     * hand it to the browser that asked for it and nothing else. Nothing is resent, so a failure needs a new call.
+     *
+     * @param string              $database     the app's database, an unquoted identifier
+     * @param string              $schema       the app's schema, an unquoted identifier
+     * @param string              $name         the Streamlit object's name, an unquoted identifier
+     * @param string              $role         sent as X-Snowflake-Role, an unquoted identifier
+     * @param ParentOrigin|string $parentOrigin the origin of the page that frames the app
+     *
+     * @throws InvalidArgumentException when an identifier or the origin is refused, before anything is sent.
+     * @throws AuthenticationException  401 or 403 from Snowflake.
+     * @throws RateLimitedException     429.
+     * @throws TransportException       connection failure, HTTP timeout, 5xx, any other status (including 400 and
+     *                                  404), a 200 without an https embed_url, or an unreadable body.
+     */
+    public function generateStreamlitEmbedUrl(
+        string $database,
+        string $schema,
+        string $name,
+        string $role,
+        ParentOrigin|string $parentOrigin,
+    ): EmbedUrl {
+        $request = new GenerateStreamlitEmbedUrlRequest(
+            Identifier::assertUnquoted($database, 'database'),
+            Identifier::assertUnquoted($schema, 'schema'),
+            Identifier::assertUnquoted($name, 'Streamlit name'),
+            Identifier::assertUnquoted($role, 'role'),
+            $parentOrigin instanceof ParentOrigin ? $parentOrigin : ParentOrigin::fromString($parentOrigin),
+        );
+        [$response, $status, $body] = $this->send($request);
+
+        if ($status === 200) {
+            $url = $body['embed_url'] ?? null;
+
+            if (! is_string($url) || preg_match('#^https://[^\x00-\x20\x7f/?\#@\\\\]+(?:[/?\#]\S*)?$#Di', $url) !== 1) {
+                throw new TransportException('Snowflake returned a 200 body without an https embed_url.', 200);
+            }
+
+            return new EmbedUrl($url);
+        }
+
+        throw self::failure($response, $status, $body, forStatement: false);
     }
 
     /**
@@ -281,6 +318,38 @@ final class Snowflake
         }
 
         return $rows;
+    }
+
+    /**
+     * Sends a request once and reads its answer: the response, its status, the decoded body (null when it is not
+     * JSON) and the milliseconds the HTTP call took. Error statuses do not throw here; the caller maps them.
+     *
+     * @return array{0: Response, 1: int, 2: array<array-key, mixed>|null, 3: int}
+     *
+     * @throws TransportException when Snowflake cannot be reached or the response is larger than the limit.
+     */
+    private function send(#[SensitiveParameter] Request $request): array
+    {
+        $startedAt = hrtime(true);
+
+        try {
+            $response = $this->connector->send($request);
+        } catch (Throwable $e) {
+            throw new TransportException('Could not reach Snowflake: ' . self::describe($e));
+        }
+
+        $elapsedMilliseconds = intdiv(hrtime(true) - $startedAt, 1_000_000);
+        $status = $response->status();
+        $raw = $response->body();
+
+        if (strlen($raw) > $this->options->maxResponseBytes) {
+            throw new TransportException(
+                sprintf('The Snowflake response exceeded the limit of %d bytes.', $this->options->maxResponseBytes),
+                $status
+            );
+        }
+
+        return [$response, $status, self::decode($raw), $elapsedMilliseconds];
     }
 
     /**

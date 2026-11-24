@@ -4,7 +4,7 @@ These are the standards the automated reviewer (`.github/workflows/code-review.y
 
 ## What this package does
 
-It submits one SQL statement to the Snowflake SQL API v2 with a caller-supplied credential, through Saloon, and returns a typed result or throws a typed exception. It is transport only: it never decides who may run what, never inspects SQL, never caches, never retries and never logs.
+It submits one SQL statement to the Snowflake SQL API v2, or mints one Streamlit in Snowflake embed URL, with a caller-supplied credential, through Saloon, and returns a typed result or throws a typed exception. An embed URL is a bearer credential and gets the same protection as a token. It is transport only: it never decides who may run what, never inspects SQL, never caches, never retries and never logs.
 
 ## Blocking issues
 

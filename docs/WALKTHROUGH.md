@@ -50,18 +50,19 @@ composer require "interworks/laravel-snowflake:@dev"
 
 ```text
 src/
-├── Snowflake.php                  entry point; execute() sends the request and maps the response
+├── Snowflake.php                  entry point; execute() and generateStreamlitEmbedUrl() send and map the response
 ├── Options.php                    timeouts, user agent suffix, response size limit
 ├── SnowflakeServiceProvider.php   registers config/snowflake-api.php, binds nothing
 ├── Auth/                          Authenticator interface, OAuthAccessToken, ProgrammaticAccessToken
 ├── Exceptions/                    SnowflakeException base and one class per failure kind
 ├── Http/
 │   ├── SnowflakeConnector.php     Saloon connector: base URL, headers, auth, timeouts, transport safety
-│   └── Requests/SubmitStatementRequest.php   POST /statements
-├── Result/                        StatementResult and Column, the typed answer
+│   └── Requests/                  SubmitStatementRequest (POST /statements),
+│                                  GenerateStreamlitEmbedUrlRequest (POST .../streamlits/{name}:generate-embed-url)
+├── Result/                        StatementResult and Column, the typed answer; EmbedUrl, the masked embed URL
 ├── Sql/                           ExternalOAuthIntegration: SQL text helpers, runs nothing
 ├── Statement/                     Statement builder, Binding, BindingType
-└── Support/                       AccountUrl and Identifier validators
+└── Support/                       AccountUrl, Identifier and ParentOrigin validators
 config/snowflake-api.php           the only config file
 tests/
 ├── Arch/ArchTest.php              rules about the codebase itself
@@ -87,9 +88,15 @@ $result = $snowflake->execute(Statement::make('SELECT ...')->bind(1, BindingType
    comes from `Authenticator::token()`, once per request.
 4. **Saloon sends it.** HTTP error statuses do not throw. Only transport failures (connection, TLS, timeout) raise
    Saloon's `FatalRequestException`.
-5. **`Snowflake::execute()`** times the call, then either converts a transport failure into a `TransportException` or
-   decodes the body and branches on the status. `buildResult()` and its helpers validate a 200 body strictly;
-   `failure()` maps every other status to its exception class.
+5. **`Snowflake::send()`** times the call, converts a transport failure or an oversized body into a
+   `TransportException`, and decodes the body. **`Snowflake::execute()`** then branches on the status:
+   `buildResult()` and its helpers validate a 200 body strictly; `failure()` maps every other status to its exception
+   class.
+
+`generateStreamlitEmbedUrl()` follows the same path. It validates the identifiers and the origin first, sends
+`GenerateStreamlitEmbedUrlRequest` (the role travels as `X-Snowflake-Role`), accepts a 200 only when `embed_url` is an
+`https` URL, wraps it in `Result\EmbedUrl`, and calls `failure()` with `forStatement: false`, so 202 and 422 do not
+become statement exceptions.
 
 Read `execute()` and the private helpers in `src/Snowflake.php` next to each other. That file is the behaviour contract.
 
@@ -110,6 +117,9 @@ Read `execute()` and the private helpers in `src/Snowflake.php` next to each oth
 Snowflake's error bodies are read defensively: any field may be missing or the wrong type, and a fixed sentence is used
 instead of a missing `message`.
 
+For an embed URL request the table differs in three rows: a 200 needs an `https` `embed_url` (anything else is a
+`TransportException`), and 202 and 422 are `TransportException`.
+
 ## 6. The promises, and where each is enforced
 
 Break one of these and you have changed the package's contract. A test must fail when you do.
@@ -119,6 +129,8 @@ Break one of these and you have changed the package's contract. A test must fail
 | One statement per call | `Statement::parameter()` rejects `MULTI_STATEMENT_COUNT` in any case | `StatementTest` |
 | A statement is never resent | No retry config; `allow_redirects => false` in the connector | `SnowflakeExecuteTest` ("never retries", "turns redirects off") |
 | Tokens never leak | Closure storage and `#[SensitiveParameter]` in the authenticators | `AuthenticatorTest` |
+| Embed URLs never leak and are only `https` | Closure storage in `Result\EmbedUrl`; the `https` check in `generateStreamlitEmbedUrl()` | `StreamlitEmbedUrlTest` |
+| Only plain origins | `ParentOrigin` allows `https://host[:port]` and `http://localhost[:port]` only | `ParentOriginTest` |
 | Exceptions carry no token, SQL or headers, and no previous exception | `Snowflake::describe()` copies only class and message; `SnowflakeException::redact()` masks `Bearer ...` | `SnowflakeExecuteTest` ("never leaks"), `ExceptionsTest` |
 | Rows are untouched strings | `rowsFrom()` rejects any cell that is not a string or null | `SnowflakeExecuteTest` |
 | Only trusted hosts | `AccountUrl` allows only https hosts under `snowflakecomputing.com` or `.cn` | `AccountUrlTest` |
@@ -176,7 +188,9 @@ before starting.
   a rule, plant a violation in `src/` and confirm the test fails, then remove it.
 - **The live test.** `tests/Live/LiveStatementTest.php` runs `SELECT CURRENT_USER() AS U, 1 AS ONE` against a real account.
   Export `SNOWFLAKE_LIVE=1`, `SNOWFLAKE_ACCOUNT_URL` and `SNOWFLAKE_PAT` in your shell, then `composer test:live`. Run
-  it before every release. Never put those values in a file.
+  it before every release. Never put those values in a file. The same file mints a Streamlit embed URL when
+  `SNOWFLAKE_LIVE_STREAMLIT` (`DATABASE.SCHEMA.APP`), `SNOWFLAKE_LIVE_ROLE` and `SNOWFLAKE_LIVE_ORIGIN` are also exported;
+  the PAT's user needs `USAGE` and `EMBED` on the app, and the origin must be in `STREAMLIT_EMBEDDING_CONTROLS`.
 
 ## 9. Gotchas that have already bitten once
 

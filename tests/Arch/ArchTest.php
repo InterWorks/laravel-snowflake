@@ -49,6 +49,7 @@ arch('value objects are readonly')
         'InterWorks\SnowflakeApi\Result',
         'InterWorks\SnowflakeApi\Statement\Binding',
         'InterWorks\SnowflakeApi\Support\AccountUrl',
+        'InterWorks\SnowflakeApi\Support\ParentOrigin',
         'InterWorks\SnowflakeApi\Auth\OAuthAccessToken',
         'InterWorks\SnowflakeApi\Auth\ProgrammaticAccessToken',
     ])

@@ -22,7 +22,7 @@ $result = Snowflake::make($accountUrl, new OAuthAccessToken($jwt))->execute(
 **Contents:** [At a glance](#at-a-glance) · [Install](#install) · [Quick start](#quick-start) ·
 [Authenticators](#authenticators) · [Statement builder](#statement-builder) · [Results](#results) ·
 [Errors](#errors) · [Configuration](#configuration) · [External OAuth setup helper](#external-oauth-setup-helper) ·
-[Testing](#testing) · [Security](#security) · [FAQ](#faq) · [Roadmap](#roadmap) · [License](#license)
+[Streamlit embed URLs](#streamlit-embed-urls) · [Testing](#testing) · [Security](#security) · [FAQ](#faq) · [Roadmap](#roadmap) · [License](#license)
 
 ## At a glance
 
@@ -34,6 +34,7 @@ $result = Snowflake::make($accountUrl, new OAuthAccessToken($jwt))->execute(
 | Keep tokens out of messages, dumps and stack traces | Log, cache or inspect your SQL |
 | Return values exactly as Snowflake sent them (strings or null) | Cast, hydrate or map rows to models |
 | Generate the SQL text for an External OAuth integration | Decide who may run what (Snowflake does, through the token's role) |
+| Mint a single-use embed URL for a Streamlit in Snowflake app | Render the iframe or decide who may see the app |
 
 It is a transport layer. If you want an ORM, a query builder or a connection pool, this is not that package. If you want
 to send a governed query on behalf of a user and know exactly what can go wrong, it is.
@@ -282,6 +283,54 @@ ExternalOAuthIntegration::verifyTokenSql($jwt);   // SELECT SYSTEM$VERIFY_EXTERN
 String literals have quotes and backslashes doubled, and arguments containing control characters, newlines or NUL bytes
 are refused.
 
+## Streamlit embed URLs
+
+`generateStreamlitEmbedUrl()` calls Snowflake's
+[`generate-embed-url`](https://docs.snowflake.com/en/developer-guide/streamlit/features/embedding/overview) endpoint and
+returns a single-use URL that loads a Streamlit in Snowflake app in an iframe on your page. The app runs as the identity
+of the credential: a viewer's External OAuth token makes it run as that viewer, and a service user's PAT makes every
+viewer share that service user.
+
+```php
+use InterWorks\SnowflakeApi\Auth\OAuthAccessToken;
+use InterWorks\SnowflakeApi\Snowflake;
+
+$embedUrl = Snowflake::make($accountUrl, new OAuthAccessToken($viewerJwt))->generateStreamlitEmbedUrl(
+    database: 'ANALYTICS',
+    schema: 'APPS',
+    name: 'SALES_APP',
+    role: 'VIEWER_ROLE',                         // sent as X-Snowflake-Role; required, no default-role fallback
+    parentOrigin: 'https://portal.example.com',  // the origin of the page that holds the iframe
+);
+
+return response()->json(['src' => $embedUrl->url()]);
+```
+
+It sends `POST /api/v2/databases/{database}/schemas/{schema}/streamlits/{name}:generate-embed-url` with the body
+`{"parent_origin": "..."}`, and a fixed HTTP timeout of 30 seconds.
+
+**The URL is a credential.** Its authorization code is valid for about ten minutes, works once, and shows the app to
+whoever opens it as the identity that minted it. `Result\EmbedUrl` holds it like a token (masked, hidden from dumps,
+not serialisable), and only `url()` returns it. Mint one per page load from your server, behind your own authentication,
+send it to the browser that asked, and never log, cache or store it. A reload needs a new URL.
+
+**Validation before anything is sent.** Database, schema, name and role must be unquoted identifiers. The origin must be
+`https://host` or `https://host:port` (`http://localhost[:port]` is allowed for development) with no path, query,
+fragment or userinfo; it is lowercased and loses a trailing slash and a default port. `Support\ParentOrigin` does this
+check and can be passed instead of a string. A 200 whose `embed_url` is not an `https` URL is a `TransportException`, so
+a `javascript:` URL never reaches your iframe.
+
+**What Snowflake needs**, none of which the package checks:
+
+- The app runs on a container runtime with Streamlit 1.53.0 or later.
+- The role has `USAGE` and `EMBED` on the app (`GRANT EMBED ON STREAMLIT db.schema.app TO ROLE r`). Ownership does not
+  imply `EMBED`.
+- The origin is listed in the account parameter `STREAMLIT_EMBEDDING_CONTROLS` (`allowed_embedding_domains`).
+
+**Errors.** 401 and 403 are `AuthenticationException` and 429 is `RateLimitedException`, as for statements. Every other
+status, including 202, 400, 404 and 422, is a `TransportException` carrying `httpStatus`, `snowflakeCode` and
+Snowflake's message, because those statuses have no statement meaning here.
+
 ## Testing
 
 Your own tests never need the network. Attach Saloon's `MockClient` to the connector:
@@ -374,7 +423,6 @@ yourself with token type `KEYPAIR_JWT`.
 
 - **0.2.0:** poll a statement handle, fetch partition N, cancel a statement, `executeAsync()`.
 - **0.3.0:** key-pair JWT authenticator.
-- **0.4.0:** Streamlit in Snowflake `generate-embed-url` endpoint.
 - **Never:** SQL inspection or rewriting, result caching, authorization decisions, value casting policies.
 
 See [CHANGELOG.md](CHANGELOG.md) for released changes.

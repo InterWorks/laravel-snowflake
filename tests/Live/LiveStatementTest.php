@@ -38,3 +38,30 @@ it('runs a statement against a real Snowflake account', function (): void {
             || liveEnv('SNOWFLAKE_PAT') === '',
         'Set SNOWFLAKE_LIVE=1, SNOWFLAKE_ACCOUNT_URL and SNOWFLAKE_PAT to run the live test.'
     );
+
+it('mints a Streamlit embed url against a real Snowflake account', function (): void {
+    [$database, $schema, $name] = array_pad(explode('.', liveEnv('SNOWFLAKE_LIVE_STREAMLIT')), 3, '');
+    $token = new ProgrammaticAccessToken(liveEnv('SNOWFLAKE_PAT'));
+    $snowflake = Snowflake::make(liveEnv('SNOWFLAKE_ACCOUNT_URL'), $token);
+
+    $embedUrl = $snowflake->generateStreamlitEmbedUrl(
+        $database,
+        $schema,
+        $name,
+        liveEnv('SNOWFLAKE_LIVE_ROLE'),
+        liveEnv('SNOWFLAKE_LIVE_ORIGIN')
+    );
+
+    expect($embedUrl->url())->toStartWith('https://');
+})
+    ->group('live')
+    ->skip(
+        fn (): bool => liveEnv('SNOWFLAKE_LIVE') !== '1'
+            || liveEnv('SNOWFLAKE_ACCOUNT_URL') === ''
+            || liveEnv('SNOWFLAKE_PAT') === ''
+            || liveEnv('SNOWFLAKE_LIVE_STREAMLIT') === ''
+            || liveEnv('SNOWFLAKE_LIVE_ROLE') === ''
+            || liveEnv('SNOWFLAKE_LIVE_ORIGIN') === '',
+        'Also set SNOWFLAKE_LIVE_STREAMLIT (DATABASE.SCHEMA.APP), SNOWFLAKE_LIVE_ROLE and SNOWFLAKE_LIVE_ORIGIN to run '
+        . 'the live embed test. The PAT user needs USAGE and EMBED on the app, and the origin must be registered.'
+    );
