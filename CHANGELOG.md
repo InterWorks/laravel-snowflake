@@ -4,11 +4,21 @@ All notable changes to this project are documented in this file. The format foll
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.0] - Unreleased
 
 ### Added
 
 - Supports PHP 8.5, now tested in CI.
+- `Snowflake::generateStreamlitEmbedUrl()` mints a single-use URL for a Streamlit in Snowflake app through the
+  `generate-embed-url` endpoint, with the role sent as `X-Snowflake-Role` and the page origin as `parent_origin`.
+- `Result\EmbedUrl`, which holds the URL masked like a token, and `Support\ParentOrigin`, which validates and normalises
+  the origin of the page that frames the app.
+
+### Security
+
+- An embed URL is a bearer credential: `EmbedUrl` keeps it out of dumps, casts, JSON and serialisation, and a 200 whose
+  `embed_url` is not an `https` URL on a subdomain of `snowflake.app` or `snowflakecomputing.app` with a valid port is
+  refused, so a `javascript:`, malformed or non-Snowflake URL never reaches an iframe.
 
 ## [0.1.0] - 2026-11-10
 

@@ -22,7 +22,8 @@ $result = Snowflake::make($accountUrl, new OAuthAccessToken($jwt))->execute(
 **Contents:** [At a glance](#at-a-glance) · [Install](#install) · [Quick start](#quick-start) ·
 [Authenticators](#authenticators) · [Statement builder](#statement-builder) · [Results](#results) ·
 [Errors](#errors) · [Configuration](#configuration) · [External OAuth setup helper](#external-oauth-setup-helper) ·
-[Testing](#testing) · [Security](#security) · [FAQ](#faq) · [Roadmap](#roadmap) · [License](#license)
+[Streamlit embed URLs](#streamlit-embed-urls) · [Testing](#testing) · [Security](#security) · [FAQ](#faq) ·
+[Roadmap](#roadmap) · [License](#license)
 
 ## At a glance
 
@@ -34,6 +35,7 @@ $result = Snowflake::make($accountUrl, new OAuthAccessToken($jwt))->execute(
 | Keep tokens out of messages, dumps and stack traces | Log, cache or inspect your SQL |
 | Return values exactly as Snowflake sent them (strings or null) | Cast, hydrate or map rows to models |
 | Generate the SQL text for an External OAuth integration | Decide who may run what (Snowflake does, through the token's role) |
+| Mint a single-use embed URL for a Streamlit in Snowflake app | Render the iframe or decide who may see the app |
 
 It is a transport layer. If you want an ORM, a query builder or a connection pool, this is not that package. If you want
 to send a governed query on behalf of a user and know exactly what can go wrong, it is.
@@ -182,7 +184,7 @@ Floats lose precision. Keep money as strings and use `bcmath` or a decimal libra
 
 **Only the first partition is returned.** A large result is split into partitions and only the first comes back. If
 `hasMorePartitions()` is true, `rows` is a partial answer, and ignoring that is how reports end up silently wrong.
-Narrow the query, add a `LIMIT`, or wait for partition fetching in 0.2.0.
+Narrow the query, add a `LIMIT`, or wait for partition fetching in 0.3.0.
 
 ## Errors
 
@@ -222,8 +224,8 @@ Every exception obeys three rules, and every test asserts them:
 3. Nothing is resent. After a 5xx or a timeout you cannot know whether the statement ran, and resending an `INSERT`
    could duplicate data.
 
-A 202 means the statement outlived the synchronous wait and may still be running. Version 0.1.0 reports it; polling and
-cancelling arrive in 0.2.0.
+A 202 means the statement outlived the synchronous wait and may still be running. The package reports it; polling and
+cancelling arrive in 0.3.0.
 
 ## Configuration
 
@@ -281,6 +283,66 @@ ExternalOAuthIntegration::verifyTokenSql($jwt);   // SELECT SYSTEM$VERIFY_EXTERN
 
 String literals have quotes and backslashes doubled, and arguments containing control characters, newlines or NUL bytes
 are refused.
+
+## Streamlit embed URLs
+
+`generateStreamlitEmbedUrl()` calls Snowflake's
+[`generate-embed-url`](https://docs.snowflake.com/en/developer-guide/streamlit/features/embedding/overview) endpoint and
+returns a single-use URL that loads a Streamlit in Snowflake app in an iframe on your page. The app runs as the identity
+of the credential: a viewer's External OAuth token makes it run as that viewer, and a service user's PAT makes every
+viewer share that service user.
+
+```php
+use InterWorks\SnowflakeApi\Auth\OAuthAccessToken;
+use InterWorks\SnowflakeApi\Snowflake;
+
+$embedUrl = Snowflake::make($accountUrl, new OAuthAccessToken($viewerJwt))->generateStreamlitEmbedUrl(
+    database: 'ANALYTICS',
+    schema: 'APPS',
+    name: 'SALES_APP',
+    role: 'VIEWER_ROLE',                         // sent as X-Snowflake-Role; required, no default-role fallback
+    parentOrigin: 'https://portal.example.com',  // the origin of the page that holds the iframe
+);
+
+return response()->json(['src' => $embedUrl->url()])->header('Cache-Control', 'no-store');
+```
+
+It sends `POST /api/v2/databases/{database}/schemas/{schema}/streamlits/{name}:generate-embed-url` with the body
+`{"parent_origin": "..."}`, and a fixed HTTP timeout of 30 seconds.
+
+**The URL is a credential.** Its authorization code is valid for about ten minutes, works once, and shows the app to
+whoever opens it as the identity that minted it. `Result\EmbedUrl` holds it like a token (masked, hidden from dumps,
+not serialisable), and only `url()` returns it. Mint one per page load from your server, behind your own authentication,
+send it to the browser that asked, and never log, cache or store it. A reload needs a new URL. Send the response with
+`Cache-Control: no-store`, and keep the route out of anything that records response bodies, such as Telescope,
+Debugbar or a request logger, because they would store the URL.
+
+**You decide who may embed what.** The package sends whatever you pass. Choose the database, schema, name, role and
+origin on the server from your own authorization rules, never from request input. With a shared service-user PAT, a
+user who can pick `name` or `role` can mint a URL for every app that service user may embed. Take the origin from
+configuration rather than the request's `Origin` or `Referer` header. Prefer a viewer's own token, so Snowflake's grants
+apply to the person who sees the app.
+
+**Validation before anything is sent.** Database, schema, name and role must be unquoted identifiers. The origin must be
+`https://host` or `https://host:port` (`http://localhost[:port]` is allowed for development) with no path, query,
+fragment or userinfo; it is lowercased and loses a trailing slash and a default port. `Support\ParentOrigin` does this
+check and can be passed instead of a string. The package accepts `http://localhost` in every environment, so keep
+localhost out of the production account's `allowed_embedding_domains`. A 200 whose `embed_url` is not an `https` URL
+on a subdomain of `snowflake.app` or `snowflakecomputing.app`, with an optional port from 1 to 65535, no userinfo and
+no whitespace or control characters is a `TransportException`, so a `javascript:`, malformed or non-Snowflake URL never
+reaches your iframe. Those are the two domains Snowflake documents for Streamlit apps (`privatelink.snowflake.app` is
+under the first); if Snowflake starts serving apps from another domain, embed URLs fail until the package accepts it.
+
+**What Snowflake needs**, none of which the package checks:
+
+- The app runs on a container runtime with Streamlit 1.53.0 or later.
+- The role has `USAGE` and `EMBED` on the app (`GRANT EMBED ON STREAMLIT db.schema.app TO ROLE r`). Ownership does not
+  imply `EMBED`.
+- The origin is listed in the account parameter `STREAMLIT_EMBEDDING_CONTROLS` (`allowed_embedding_domains`).
+
+**Errors.** 401 and 403 are `AuthenticationException` and 429 is `RateLimitedException`, as for statements. Every other
+status, including 202, 400, 404 and 422, is a `TransportException` carrying `httpStatus`, `snowflakeCode` and
+Snowflake's message, because those statuses have no statement meaning here.
 
 ## Testing
 
@@ -353,7 +415,7 @@ the package pins the sender so behaviour does not depend on app-level HTTP confi
 Snowflake sent and leaves that choice to the consumer. See [Results](#results) for a ready-made mapping.
 
 **Why only the first partition?** Fetching later partitions is a separate API call with its own failure modes. The
-package reports `partitionCount` so you can detect a partial result, and partition fetching is planned for 0.2.0.
+package reports `partitionCount` so you can detect a partial result, and partition fetching is planned for 0.3.0.
 
 **Why no retries?** A statement may write data. After a timeout or a 5xx you cannot tell whether it ran, so resending
 could duplicate effects. The decision belongs to the caller, who knows whether the statement is idempotent.
@@ -372,9 +434,8 @@ yourself with token type `KEYPAIR_JWT`.
 
 ## Roadmap
 
-- **0.2.0:** poll a statement handle, fetch partition N, cancel a statement, `executeAsync()`.
-- **0.3.0:** key-pair JWT authenticator.
-- **0.4.0:** Streamlit in Snowflake `generate-embed-url` endpoint.
+- **0.3.0:** poll a statement handle, fetch partition N, cancel a statement, `executeAsync()`.
+- **0.4.0:** key-pair JWT authenticator.
 - **Never:** SQL inspection or rewriting, result caching, authorization decisions, value casting policies.
 
 See [CHANGELOG.md](CHANGELOG.md) for released changes.

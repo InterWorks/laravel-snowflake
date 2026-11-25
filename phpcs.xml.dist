@@ -35,6 +35,7 @@
     <rule ref="Generic.PHP.ForbiddenFunctions">
         <exclude-pattern>*/tests/Unit/AuthenticatorTest.php</exclude-pattern>
         <exclude-pattern>*/tests/Unit/SnowflakeExecuteTest.php</exclude-pattern>
+        <exclude-pattern>*/tests/Unit/StreamlitEmbedUrlTest.php</exclude-pattern>
         <properties>
             <property name="forbiddenFunctions" type="array">
                 <element key="dd" value="null" />

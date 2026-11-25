@@ -8,8 +8,10 @@ Read `docs/WALKTHROUGH.md` first. It maps the code, follows one call end to end,
 
 ## What the package is
 
-Transport only. It submits one SQL statement with a caller-supplied credential and returns a typed result or throws a
-typed exception. It never decides who may run what, never inspects SQL, never caches, never retries and never logs.
+Transport only. It submits one SQL statement, or mints one Streamlit in Snowflake embed URL, with a caller-supplied
+credential and returns a typed result or throws a typed exception. It never decides who may run what, never inspects
+SQL, never caches, never retries and never logs. An embed URL is a bearer credential and is held like a token
+(`Result\EmbedUrl`).
 Anything on the README roadmap is not built until it is asked for, even if it looks trivial.
 
 ## Commands
