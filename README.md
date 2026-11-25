@@ -22,7 +22,8 @@ $result = Snowflake::make($accountUrl, new OAuthAccessToken($jwt))->execute(
 **Contents:** [At a glance](#at-a-glance) · [Install](#install) · [Quick start](#quick-start) ·
 [Authenticators](#authenticators) · [Statement builder](#statement-builder) · [Results](#results) ·
 [Errors](#errors) · [Configuration](#configuration) · [External OAuth setup helper](#external-oauth-setup-helper) ·
-[Streamlit embed URLs](#streamlit-embed-urls) · [Testing](#testing) · [Security](#security) · [FAQ](#faq) · [Roadmap](#roadmap) · [License](#license)
+[Streamlit embed URLs](#streamlit-embed-urls) · [Testing](#testing) · [Security](#security) · [FAQ](#faq) ·
+[Roadmap](#roadmap) · [License](#license)
 
 ## At a glance
 
@@ -303,7 +304,7 @@ $embedUrl = Snowflake::make($accountUrl, new OAuthAccessToken($viewerJwt))->gene
     parentOrigin: 'https://portal.example.com',  // the origin of the page that holds the iframe
 );
 
-return response()->json(['src' => $embedUrl->url()]);
+return response()->json(['src' => $embedUrl->url()])->header('Cache-Control', 'no-store');
 ```
 
 It sends `POST /api/v2/databases/{database}/schemas/{schema}/streamlits/{name}:generate-embed-url` with the body
@@ -312,14 +313,24 @@ It sends `POST /api/v2/databases/{database}/schemas/{schema}/streamlits/{name}:g
 **The URL is a credential.** Its authorization code is valid for about ten minutes, works once, and shows the app to
 whoever opens it as the identity that minted it. `Result\EmbedUrl` holds it like a token (masked, hidden from dumps,
 not serialisable), and only `url()` returns it. Mint one per page load from your server, behind your own authentication,
-send it to the browser that asked, and never log, cache or store it. A reload needs a new URL.
+send it to the browser that asked, and never log, cache or store it. A reload needs a new URL. Send the response with
+`Cache-Control: no-store`, and keep the route out of anything that records response bodies, such as Telescope,
+Debugbar or a request logger, because they would store the URL.
+
+**You decide who may embed what.** The package sends whatever you pass. Choose the database, schema, name, role and
+origin on the server from your own authorization rules, never from request input. With a shared service-user PAT, a
+user who can pick `name` or `role` can mint a URL for every app that service user may embed. Take the origin from
+configuration rather than the request's `Origin` or `Referer` header. Prefer a viewer's own token, so Snowflake's grants
+apply to the person who sees the app.
 
 **Validation before anything is sent.** Database, schema, name and role must be unquoted identifiers. The origin must be
 `https://host` or `https://host:port` (`http://localhost[:port]` is allowed for development) with no path, query,
 fragment or userinfo; it is lowercased and loses a trailing slash and a default port. `Support\ParentOrigin` does this
-check and can be passed instead of a string. A 200 whose `embed_url` is not an `https` URL with a DNS host, an optional
-port from 1 to 65535, no userinfo and no whitespace or control characters is a `TransportException`, so a `javascript:`
-or malformed URL never reaches your iframe.
+check and can be passed instead of a string. The package accepts `http://localhost` in every environment, so keep
+localhost out of the production account's `allowed_embedding_domains`. A 200 whose `embed_url` is not an `https` URL
+with a DNS host, an optional port from 1 to 65535, no userinfo and no whitespace or control characters is a
+`TransportException`, so a `javascript:` or malformed URL never reaches your iframe. The host of `embed_url` is not
+restricted to a Snowflake domain.
 
 **What Snowflake needs**, none of which the package checks:
 
