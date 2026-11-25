@@ -328,9 +328,10 @@ apply to the person who sees the app.
 fragment or userinfo; it is lowercased and loses a trailing slash and a default port. `Support\ParentOrigin` does this
 check and can be passed instead of a string. The package accepts `http://localhost` in every environment, so keep
 localhost out of the production account's `allowed_embedding_domains`. A 200 whose `embed_url` is not an `https` URL
-with a DNS host, an optional port from 1 to 65535, no userinfo and no whitespace or control characters is a
-`TransportException`, so a `javascript:` or malformed URL never reaches your iframe. The host of `embed_url` is not
-restricted to a Snowflake domain.
+on a subdomain of `snowflake.app` or `snowflakecomputing.app`, with an optional port from 1 to 65535, no userinfo and
+no whitespace or control characters is a `TransportException`, so a `javascript:`, malformed or non-Snowflake URL never
+reaches your iframe. Those are the two domains Snowflake documents for Streamlit apps (`privatelink.snowflake.app` is
+under the first); if Snowflake starts serving apps from another domain, embed URLs fail until the package accepts it.
 
 **What Snowflake needs**, none of which the package checks:
 

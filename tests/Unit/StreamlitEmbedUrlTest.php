@@ -142,6 +142,9 @@ it('returns the embed url from a 200', function (string $url): void {
     'highest port' => ['https://abc123.snowflake.app:65535/embed?code=single-use-code'],
     'host only' => ['https://abc123.snowflake.app'],
     'fragment' => ['https://abc123.snowflake.app#code=single-use-code'],
+    'snowflakecomputing.app host' => ['https://abc123.snowflakecomputing.app/embed?code=single-use-code'],
+    'privatelink host' => ['https://abc123.myorg-myacct.privatelink.snowflake.app/embed?code=single-use-code'],
+    'upper case host' => ['https://ABC123.Snowflake.App/embed?code=single-use-code'],
 ]);
 
 it('rejects a 200 without an https embed url', function (string $body): void {
@@ -182,6 +185,13 @@ it('rejects a 200 without an https embed url', function (string $body): void {
     'empty port' => [embedUrlBody('https://abc123.snowflake.app:/embed?code=single-use-code')],
     'underscore in the host' => [embedUrlBody('https://abc_123.snowflake.app/embed?code=single-use-code')],
     'empty label' => [embedUrlBody('https://abc123..snowflake.app/embed?code=single-use-code')],
+    'non-Snowflake host' => [embedUrlBody('https://evil.example/embed?code=single-use-code')],
+    'localhost' => [embedUrlBody('https://localhost/embed?code=single-use-code')],
+    'IP address' => [embedUrlBody('https://127.0.0.1/embed?code=single-use-code')],
+    'bare snowflake.app' => [embedUrlBody('https://snowflake.app/embed?code=single-use-code')],
+    'lookalike suffix' => [embedUrlBody('https://abc123.evilsnowflake.app/embed?code=single-use-code')],
+    'Snowflake domain as a subdomain' => [embedUrlBody('https://abc123.snowflake.app.evil.example/?code=single-use-code')],
+    'Snowflake account host' => [embedUrlBody('https://myorg-myacct.snowflakecomputing.com/?code=single-use-code')],
 ]);
 
 it('maps 401 and 403 to AuthenticationException', function (int $status): void {

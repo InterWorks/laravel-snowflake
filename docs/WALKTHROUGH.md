@@ -95,8 +95,8 @@ $result = $snowflake->execute(Statement::make('SELECT ...')->bind(1, BindingType
 
 `generateStreamlitEmbedUrl()` follows the same path. It validates the identifiers and the origin first, sends
 `GenerateStreamlitEmbedUrlRequest` (the role travels as `X-Snowflake-Role`), accepts a 200 only when `embed_url` is an
-`https` URL with a valid host and port (`isEmbedUrl()`), wraps it in `Result\EmbedUrl`, and calls `failure()` with
-`forStatement: false`, so 202 and 422 do not become statement exceptions.
+`https` URL on a Snowflake app domain with a valid port (`isEmbedUrl()`), wraps it in `Result\EmbedUrl`, and calls
+`failure()` with `forStatement: false`, so 202 and 422 do not become statement exceptions.
 
 Read `execute()` and the private helpers in `src/Snowflake.php` next to each other. That file is the behaviour contract.
 
@@ -117,8 +117,8 @@ Read `execute()` and the private helpers in `src/Snowflake.php` next to each oth
 Snowflake's error bodies are read defensively: any field may be missing or the wrong type, and a fixed sentence is used
 instead of a missing `message`.
 
-For an embed URL request the table differs in three rows: a 200 needs an `https` `embed_url` with a valid host and
-port (anything else is a `TransportException`), and 202 and 422 are `TransportException`.
+For an embed URL request the table differs in three rows: a 200 needs an `https` `embed_url` on a subdomain of
+`snowflake.app` or `snowflakecomputing.app` with a valid port (anything else is a `TransportException`), and 202 and 422 are `TransportException`.
 
 ## 6. The promises, and where each is enforced
 
@@ -129,7 +129,7 @@ Break one of these and you have changed the package's contract. A test must fail
 | One statement per call | `Statement::parameter()` rejects `MULTI_STATEMENT_COUNT` in any case | `StatementTest` |
 | A statement is never resent | No retry config; `allow_redirects => false` in the connector | `SnowflakeExecuteTest` ("never retries", "turns redirects off") |
 | Tokens never leak | Closure storage and `#[SensitiveParameter]` in the authenticators | `AuthenticatorTest` |
-| Embed URLs never leak and are only `https` | Closure storage in `Result\EmbedUrl`; the `https` check in `generateStreamlitEmbedUrl()` | `StreamlitEmbedUrlTest` |
+| Embed URLs never leak and are only `https` on a Snowflake app domain | Closure storage in `Result\EmbedUrl`; `isEmbedUrl()` in `generateStreamlitEmbedUrl()` | `StreamlitEmbedUrlTest` |
 | Only plain origins | `ParentOrigin` allows `https://host[:port]` and `http://localhost[:port]` only | `ParentOriginTest` |
 | Exceptions carry no token, SQL or headers, and no previous exception | `Snowflake::describe()` copies only class and message; `SnowflakeException::redact()` masks `Bearer ...` | `SnowflakeExecuteTest` ("never leaks"), `ExceptionsTest` |
 | Rows are untouched strings | `rowsFrom()` rejects any cell that is not a string or null | `SnowflakeExecuteTest` |

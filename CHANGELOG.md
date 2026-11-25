@@ -17,8 +17,8 @@ All notable changes to this project are documented in this file. The format foll
 ### Security
 
 - An embed URL is a bearer credential: `EmbedUrl` keeps it out of dumps, casts, JSON and serialisation, and a 200 whose
-  `embed_url` is not an `https` URL with a valid host and port is refused, so a `javascript:` or malformed URL never
-  reaches an iframe.
+  `embed_url` is not an `https` URL on a subdomain of `snowflake.app` or `snowflakecomputing.app` with a valid port is
+  refused, so a `javascript:`, malformed or non-Snowflake URL never reaches an iframe.
 
 ## [0.1.0] - 2026-11-10
 

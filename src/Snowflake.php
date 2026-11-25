@@ -37,11 +37,12 @@ final class Snowflake
     public const VERSION = '0.1.0';
 
     /**
-     * An absolute https URL whose authority is a DNS host of hyphenated labels and an optional numeric port, with no
-     * userinfo and no whitespace or control characters anywhere: what a 200 from generate-embed-url must carry before
-     * it can be handed to an iframe. The port's range is checked separately, in isEmbedUrl().
+     * An absolute https URL whose host is a subdomain of one of the two domains Snowflake documents for Streamlit apps,
+     * snowflake.app (which includes privatelink.snowflake.app) and snowflakecomputing.app, with an optional numeric
+     * port, no userinfo and no whitespace or control characters anywhere: what a 200 from generate-embed-url must
+     * carry before it can be handed to an iframe. The port's range is checked separately, in isEmbedUrl().
      */
-    private const EMBED_URL_PATTERN = '#^https://(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]*[a-z0-9])?'
+    private const EMBED_URL_PATTERN = '#^https://(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+snowflake(?:computing)?\.app'
         . '(?::([0-9]{1,5}))?(?:[/?\#][^\x00-\x20\x7f]*)?$#Di';
 
     private readonly SnowflakeConnector $connector;
@@ -244,7 +245,8 @@ final class Snowflake
      * @throws AuthenticationException  401 or 403 from Snowflake.
      * @throws RateLimitedException     429.
      * @throws TransportException       connection failure, HTTP timeout, 5xx, any other status (including 400 and
-     *                                  404), a 200 without an https embed_url, or an unreadable body.
+     *                                  404), a 200 without an https embed_url on a Snowflake app
+     *                                  domain, or an unreadable body.
      */
     public function generateStreamlitEmbedUrl(
         string $database,
@@ -266,7 +268,10 @@ final class Snowflake
             $url = $body['embed_url'] ?? null;
 
             if (! is_string($url) || ! self::isEmbedUrl($url)) {
-                throw new TransportException('Snowflake returned a 200 body without an https embed_url.', 200);
+                throw new TransportException(
+                    'Snowflake returned a 200 body without an https embed_url on a Snowflake app domain.',
+                    200
+                );
             }
 
             return new EmbedUrl($url);
@@ -276,8 +281,8 @@ final class Snowflake
     }
 
     /**
-     * Whether a URL from a generate-embed-url 200 is safe to hand to an iframe: it matches EMBED_URL_PATTERN and any
-     * port is between 1 and 65535.
+     * Whether a URL from a generate-embed-url 200 is safe to hand to an iframe: it matches EMBED_URL_PATTERN, so its
+     * host is on a Snowflake app domain, and any port is between 1 and 65535.
      */
     private static function isEmbedUrl(#[SensitiveParameter] string $url): bool
     {
